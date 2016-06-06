@@ -1,0 +1,11 @@
+# MATLAB files
+*.asv
+*.mat
+*.fig
+
+# Sample data
+*.csv
+/test data
+
+# Perl Scripts
+*.pl
