@@ -15,6 +15,7 @@ classdef xbmini < handle
         temperature
         altitude_meters
         altitude_feet
+        descentrate
     end
     
     properties (Access = private)
@@ -53,6 +54,34 @@ classdef xbmini < handle
             dataObj.pressure_sealevel = mean(dataObj.pressure(idx(1):idx(2)));
             line(idx, ones(2, 1)*dataObj.pressure_sealevel, 'Color', 'r');
             calcaltitude(dataObj);  % Recalculate altitudes
+        end
+        
+        
+        function descentrate = finddescentrate(dataObj)
+            h.fig = figure;
+            h.ax = axes('Parent', h.fig);
+            plot(dataObj.altitude_feet, 'Parent', h.ax);
+            uiwait(msgbox('Press OK to select points'))
+            [idx, ~] = ginput(2);  % Query 2 points from plot
+            idx = floor(idx);  % Make sure we have "integers"
+            myfit = polyfit(dataObj.time_pressure(idx(1):idx(2)), dataObj.altitude_feet(idx(1):idx(2)), 1);  % Calculate linear fit
+            altitude_feet_fit = dataObj.time_pressure(idx(1):idx(2)).*myfit(1) + myfit(2);  % Calculate altitude from linear fit
+            
+            % Because we just plotted altitude vs. data index, update the
+            % plot to altitude vs. time but save the limits and use them so
+            % the plot doesn't get zoomed out
+            oldxlim = floor(h.ax.XLim);
+            oldylim = h.ax.YLim;
+            plot(dataObj.time_pressure, dataObj.altitude_feet, 'Parent', h.ax);
+            xlim(dataObj.time_pressure(oldxlim));
+            ylim(oldylim);
+            hold(h.ax, 'on');
+            plot(dataObj.time_pressure(idx(1):idx(2)), altitude_feet_fit, 'r', 'Parent', h.ax)
+            hold(h.ax, 'off');
+            
+            % Set outputs
+            descentrate = myfit(1);
+            dataObj.descentrate = descentrate;
         end
     end
     
