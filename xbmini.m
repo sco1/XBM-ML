@@ -22,7 +22,8 @@ classdef xbmini
         nheaderlines = 8;  % number of header lines
         ndatapoints
         chunksize = 5000;  % Data chunk size for reading in raw data
-        pressure_sealevel = 100770
+        pressure_sealevel = 101325;  % Default sea level, Pascals
+        countspergee = 2048;  % Raw data counts per gee, for accelerometer
     end
     
     methods
@@ -39,6 +40,7 @@ classdef xbmini
             dataObj = initializedata(dataObj);
             dataObj = readrawdata(dataObj);
             dataObj = convertdata(dataObj);
+            dataObj = calcaltitude(dataObj);
         end
     end
     
@@ -94,24 +96,26 @@ classdef xbmini
         
         function dataObj = convertdata(dataObj)
             % Convert acceleration data from raw counts to gees
-            gcounts = 2048; % Raw data counts per g
-            dataObj.accel_x = dataObj.accel_x/gcounts;
-            dataObj.accel_y = dataObj.accel_y/gcounts;
-            dataObj.accel_z = dataObj.accel_z/gcounts;
+            dataObj.accel_x = dataObj.accel_x/dataObj.countspergee;
+            dataObj.accel_y = dataObj.accel_y/dataObj.countspergee;
+            dataObj.accel_z = dataObj.accel_z/dataObj.countspergee;
             
-            % Temperature sampled at a lower rate than acceleration, 
+            % Temperature sampled at a lower rate than acceleration,
             % downsample time to match
             tempidx = find(dataObj.temperature ~= 0);
             dataObj.time_temperature = dataObj.time(tempidx);
             dataObj.temperature = dataObj.temperature(tempidx)/1000; % Convert from mill-degree C to C
             
-            % Pressure sampled at a lower rate than acceleration, 
+            % Pressure sampled at a lower rate than acceleration,
             % downsample time to match
             pressidx = find(dataObj.pressure ~= 0);
             dataObj.time_pressure = dataObj.time(pressidx);
             dataObj.pressure = dataObj.pressure(pressidx);
-            
-            % Find ground level pressure for conversion from pressure to 
+        end
+        
+        
+        function dataObj = calcaltitude(dataObj)
+            % Find ground level pressure for conversion from pressure to
             % altitude
             dataObj.altitude_meters = 44330*(1 - (dataObj.pressure/dataObj.pressure_sealevel).^(1/5.255)); % Altitude, meters
             dataObj.altitude_feet = dataObj.altitude_meters * 2.2808;
