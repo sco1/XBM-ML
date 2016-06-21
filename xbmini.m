@@ -1,4 +1,4 @@
-classdef xbmini
+classdef xbmini < handle
     %UNTITLED2 Summary of this class goes here
     %   Detailed explanation goes here
     
@@ -37,15 +37,27 @@ classdef xbmini
             end
             dataObj.analysisdate = xbmini.getdate;
             dataObj.nlines = xbmini.countlines(dataObj.filepath);
-            dataObj = initializedata(dataObj);
-            dataObj = readrawdata(dataObj);
-            dataObj = convertdata(dataObj);
-            dataObj = calcaltitude(dataObj);
+            initializedata(dataObj);
+            readrawdata(dataObj);
+            convertdata(dataObj);
+            calcaltitude(dataObj);
+        end
+        
+        
+        function findsealevelpressure(dataObj)
+            h.fig = figure;
+            h.ax = axes('Parent', h.fig);
+            plot(dataObj.pressure, 'Parent', h.ax);
+            [idx, ~] = ginput(2);  % Query 2 points from plot
+            idx = floor(idx);  % Make sure we have "integers"
+            dataObj.pressure_sealevel = mean(dataObj.pressure(idx(1):idx(2)));
+            line(idx, ones(2, 1)*dataObj.pressure_sealevel, 'Color', 'r');
+            calcaltitude(dataObj);  % Recalculate altitudes
         end
     end
     
     methods (Access = private)
-        function dataObj = initializedata(dataObj)
+        function initializedata(dataObj)
             dataObj.ndatapoints = dataObj.nlines - dataObj.nheaderlines;
             dataObj.time = zeros(dataObj.ndatapoints, 1);
             dataObj.accel_x = zeros(dataObj.ndatapoints, 1);
@@ -56,7 +68,7 @@ classdef xbmini
         end
         
         
-        function dataObj = readrawdata(dataObj)
+        function readrawdata(dataObj)
             fID = fopen(dataObj.filepath);
             hlines = dataObj.nheaderlines;
             formatSpec = '%f %d %d %d %d %d';
@@ -94,7 +106,7 @@ classdef xbmini
         end
         
         
-        function dataObj = convertdata(dataObj)
+        function convertdata(dataObj)
             % Convert acceleration data from raw counts to gees
             dataObj.accel_x = dataObj.accel_x/dataObj.countspergee;
             dataObj.accel_y = dataObj.accel_y/dataObj.countspergee;
@@ -104,7 +116,7 @@ classdef xbmini
             % downsample time to match
             tempidx = find(dataObj.temperature ~= 0);
             dataObj.time_temperature = dataObj.time(tempidx);
-            dataObj.temperature = dataObj.temperature(tempidx)/1000; % Convert from mill-degree C to C
+            dataObj.temperature = dataObj.temperature(tempidx)/1000;  % Convert from mill-degree C to C
             
             % Pressure sampled at a lower rate than acceleration,
             % downsample time to match
@@ -114,10 +126,10 @@ classdef xbmini
         end
         
         
-        function dataObj = calcaltitude(dataObj)
+        function calcaltitude(dataObj)
             % Find ground level pressure for conversion from pressure to
             % altitude
-            dataObj.altitude_meters = 44330*(1 - (dataObj.pressure/dataObj.pressure_sealevel).^(1/5.255)); % Altitude, meters
+            dataObj.altitude_meters = 44330*(1 - (dataObj.pressure/dataObj.pressure_sealevel).^(1/5.255));  % Altitude, meters
             dataObj.altitude_feet = dataObj.altitude_meters * 2.2808;
         end
     end
