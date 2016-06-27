@@ -164,7 +164,7 @@ classdef xbmini < handle
             % Find ground level pressure for conversion from pressure to
             % altitude
             dataObj.altitude_meters = 44330*(1 - (dataObj.pressure/dataObj.pressure_sealevel).^(1/5.255));  % Altitude, meters
-            dataObj.altitude_feet = dataObj.altitude_meters * 2.2808;
+            dataObj.altitude_feet = dataObj.altitude_meters * 3.2808;
         end
     end
     
