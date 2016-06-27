@@ -1,5 +1,5 @@
 classdef xbmini < handle
-    %UNTITLED2 Summary of this class goes here
+    %XBMINI Summary of this class goes here
     %   Detailed explanation goes here
     
     properties
@@ -83,6 +83,12 @@ classdef xbmini < handle
             descentrate = myfit(1);
             dataObj.descentrate = descentrate;
         end
+      
+        
+        function save(dataObj)
+            [pathname, filename] = fileparts(dataObj.filepath);
+            save(fullfile(pathname, [filename '.mat']), 'dataObj');
+        end
     end
     
     methods (Access = private)
@@ -102,7 +108,6 @@ classdef xbmini < handle
             hlines = dataObj.nheaderlines;
             formatSpec = '%f %d %d %d %d %d';
             
-            frewind(fID);
             step = 1;
             while ~feof(fID)
                 if step > ceil(dataObj.nlines/dataObj.chunksize)
@@ -159,7 +164,7 @@ classdef xbmini < handle
             % Find ground level pressure for conversion from pressure to
             % altitude
             dataObj.altitude_meters = 44330*(1 - (dataObj.pressure/dataObj.pressure_sealevel).^(1/5.255));  % Altitude, meters
-            dataObj.altitude_feet = dataObj.altitude_meters * 2.2808;
+            dataObj.altitude_feet = dataObj.altitude_meters * 3.2808;
         end
     end
     
