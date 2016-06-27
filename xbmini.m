@@ -1,5 +1,5 @@
 classdef xbmini < handle
-    %UNTITLED2 Summary of this class goes here
+    %XBMINI Summary of this class goes here
     %   Detailed explanation goes here
     
     properties
@@ -83,6 +83,12 @@ classdef xbmini < handle
             descentrate = myfit(1);
             dataObj.descentrate = descentrate;
         end
+      
+        
+        function save(dataObj)
+            [pathname, filename] = fileparts(dataObj.filepath);
+            save(fullfile(pathname, [filename '.mat']), 'dataObj');
+        end
     end
     
     methods (Access = private)
@@ -102,7 +108,6 @@ classdef xbmini < handle
             hlines = dataObj.nheaderlines;
             formatSpec = '%f %d %d %d %d %d';
             
-            frewind(fID);
             step = 1;
             while ~feof(fID)
                 if step > ceil(dataObj.nlines/dataObj.chunksize)
