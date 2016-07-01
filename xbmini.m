@@ -46,38 +46,32 @@ classdef xbmini < handle
         
         
         function findsealevelpressure(dataObj)
-            h.fig = figure;
-            h.ax = axes('Parent', h.fig);
-            plot(dataObj.pressure, 'Parent', h.ax);
-            [idx, ~] = ginput(2);  % Query 2 points from plot
-            idx = floor(idx);  % Make sure we have "integers"
+            [idx, ax] = xbmini.windowdata(dataObj.pressure);
             dataObj.pressure_sealevel = mean(dataObj.pressure(idx(1):idx(2)));
-            line(idx, ones(2, 1)*dataObj.pressure_sealevel, 'Color', 'r');
+            line(idx, ones(2, 1)*dataObj.pressure_sealevel, 'Color', 'r', 'Parent', ax);
             calcaltitude(dataObj);  % Recalculate altitudes
         end
         
         
         function descentrate = finddescentrate(dataObj)
-            h.fig = figure;
-            h.ax = axes('Parent', h.fig);
-            plot(dataObj.altitude_feet, 'Parent', h.ax);
-            uiwait(msgbox('Press OK to select points'))
-            [idx, ~] = ginput(2);  % Query 2 points from plot
-            idx = floor(idx);  % Make sure we have "integers"
+            [idx, ax] = xbmini.windowdata(dataObj.altitude_feet);
             myfit = polyfit(dataObj.time_pressure(idx(1):idx(2)), dataObj.altitude_feet(idx(1):idx(2)), 1);  % Calculate linear fit
             altitude_feet_fit = dataObj.time_pressure(idx(1):idx(2)).*myfit(1) + myfit(2);  % Calculate altitude from linear fit
             
             % Because we just plotted altitude vs. data index, update the
             % plot to altitude vs. time but save the limits and use them so
             % the plot doesn't get zoomed out
-            oldxlim = floor(h.ax.XLim);
-            oldylim = h.ax.YLim;
-            plot(dataObj.time_pressure, dataObj.altitude_feet, 'Parent', h.ax);
-            xlim(dataObj.time_pressure(oldxlim));
-            ylim(oldylim);
-            hold(h.ax, 'on');
-            plot(dataObj.time_pressure(idx(1):idx(2)), altitude_feet_fit, 'r', 'Parent', h.ax)
-            hold(h.ax, 'off');
+            oldxlim = floor(ax.XLim);
+            if oldxlim < 1  % Catch indexing issue if plot isn't zoomed "properly"
+                oldxlim = 1;
+            end
+            oldylim = ax.YLim;
+            plot(dataObj.time_pressure, dataObj.altitude_feet, 'Parent', ax);
+            xlim(ax, dataObj.time_pressure(oldxlim));
+            ylim(ax, oldylim);
+            hold(ax, 'on');
+            plot(dataObj.time_pressure(idx(1):idx(2)), altitude_feet_fit, 'r', 'Parent', ax)
+            hold(ax, 'off');
             
             % Set outputs
             descentrate = myfit(1);
@@ -210,6 +204,83 @@ classdef xbmini < handle
                 end
                 
                 fclose(fID);
+            end
+        end
+        
+        function [dataidx, ax] = windowdata(ydata)
+            h.fig = figure('WindowButtonUpFcn', @xbmini.stopdrag);
+            h.ax = axes('Parent', h.fig);
+            
+            plot(ydata, 'Parent', h.ax);
+            h.line_1 = line([2 2], ylim(h.ax), ...
+                            'Color', 'g', ...
+                            'ButtonDownFcn', {@xbmini.startdrag, h} ...
+                            );
+            h.line_2 = line([5 5], ylim(h.ax), ...
+                            'Color', 'g', ...
+                            'ButtonDownFcn', {@xbmini.startdrag, h} ...
+                            );
+                        
+            xlisten = addlistener(h.ax, 'XLim', 'PostSet', @(hObj,eventdata) xbmini.checklinesx(hObj, eventdata, h));
+            ylisten = addlistener(h.ax, 'YLim', 'PostSet', @(hObj,eventdata) xbmini.changelinesy(hObj, eventdata, h));
+            
+            uiwait(msgbox('Window Region of Interest Then Press OK'))
+            delete([xlisten, ylisten]);
+            dataidx = floor(sort([h.line_1.XData(1), h.line_2.XData(1)]));
+            ax = h.ax;
+        end
+    end
+    
+    
+    methods (Static, Access = private)
+        function startdrag(lineObj, ~, h)
+            h.fig.WindowButtonMotionFcn = {@xbmini.dragline, h, lineObj};
+        end
+        
+        
+        function stopdrag(hObj, ~)
+            hObj.WindowButtonMotionFcn = '';
+        end
+        
+        
+        function checklinesx(~, ~, h)
+            currxlim = h.ax.XLim;
+            currlinex_1 = h.line_1.XData(1);
+            currlinex_2 = h.line_2.XData(1);
+            
+            if currlinex_1 < currxlim(1)
+                h.line_1.XData = [1, 1]*currxlim(1);
+            end
+            
+            if currlinex_1 > currxlim(2)
+                h.line_1.XData = [1, 1]*currxlim(2);
+            end
+            
+            if currlinex_2 < currxlim(1)
+                h.line_2.XData = [1, 1]*currxlim(1);
+            end
+            
+            if currlinex_2 > currxlim(2)
+                h.line_2.XData = [1, 1]*currxlim(2);
+            end
+            
+        end
+        
+        
+        function changelinesy(~, ~, h)
+            h.line_1.YData = ylim(h.ax);
+            h.line_2.YData = ylim(h.ax);
+        end
+
+        
+        function dragline(~, ~, h, lineObj)
+            currentX = h.ax.CurrentPoint(1, 1);
+            if currentX < h.ax.XLim(1)
+                lineObj.XData = [1, 1]*h.ax.XLim(1);
+            elseif currentX > h.ax.XLim(2)
+                lineObj.XData = [1, 1]*h.ax.XLim(2);
+            else
+                lineObj.XData = [1, 1]*currentX;
             end
         end
     end
