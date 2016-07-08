@@ -55,23 +55,26 @@ classdef xbmini < handle
         
         function descentrate = finddescentrate(dataObj)
             [idx, ax] = xbmini.windowdata(dataObj.altitude_feet);
-            myfit = polyfit(dataObj.time_pressure(idx(1):idx(2)), dataObj.altitude_feet(idx(1):idx(2)), 1);  % Calculate linear fit
-            altitude_feet_fit = dataObj.time_pressure(idx(1):idx(2)).*myfit(1) + myfit(2);  % Calculate altitude from linear fit
             
             % Because we just plotted altitude vs. data index, update the
             % plot to altitude vs. time but save the limits and use them so
             % the plot doesn't get zoomed out
             oldxlim = floor(ax.XLim);
-            if oldxlim < 1  % Catch indexing issue if plot isn't zoomed "properly"
-                oldxlim = 1;
-            end
+            oldxlim(oldxlim < 1) = 1;  % Catch indexing issue if plot isn't zoomed "properly"
+            oldxlim(oldxlim > length(dataObj.altitude_feet)) = length(dataObj.altitude_feet);  % Catch indexing issue if plot isn't zoomed "properly"
             oldylim = ax.YLim;
             plot(dataObj.time_pressure, dataObj.altitude_feet, 'Parent', ax);
             xlim(ax, dataObj.time_pressure(oldxlim));
             ylim(ax, oldylim);
+            
+            % Calculate and plot linear fit
+            myfit = polyfit(dataObj.time_pressure(idx(1):idx(2)), dataObj.altitude_feet(idx(1):idx(2)), 1);
+            altitude_feet_fit = dataObj.time_pressure(idx(1):idx(2)).*myfit(1) + myfit(2);
             hold(ax, 'on');
             plot(dataObj.time_pressure(idx(1):idx(2)), altitude_feet_fit, 'r', 'Parent', ax)
             hold(ax, 'off');
+            xlabel('Time (s)');
+            ylabel('Altitude (ft. AGL)');
             
             % Set outputs
             descentrate = myfit(1);
@@ -210,13 +213,16 @@ classdef xbmini < handle
         function [dataidx, ax] = windowdata(ydata)
             h.fig = figure('WindowButtonUpFcn', @xbmini.stopdrag);
             h.ax = axes('Parent', h.fig);
-            
             plot(ydata, 'Parent', h.ax);
-            h.line_1 = line([2 2], ylim(h.ax), ...
+            
+            % Create our window lines
+            currxlim = xlim;
+            axeswidth = currxlim(2) - currxlim(1);
+            h.line_1 = line(ones(1, 2)*axeswidth*0.25, ylim(h.ax), ...
                             'Color', 'g', ...
                             'ButtonDownFcn', {@xbmini.startdrag, h} ...
                             );
-            h.line_2 = line([5 5], ylim(h.ax), ...
+            h.line_2 = line(ones(1, 2)*axeswidth*0.75, ylim(h.ax), ...
                             'Color', 'g', ...
                             'ButtonDownFcn', {@xbmini.startdrag, h} ...
                             );
