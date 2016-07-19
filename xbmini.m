@@ -1,7 +1,7 @@
 classdef xbmini < handle
     % XBMINI is a MATLAB class definition providing the user with a set of
     % methods to parse and analyze raw data files output by GCDC XBmini
-    % dataloggers.
+    % datalogger
     %
     % Initialize an xbmini object using an absolute filepath to the raw
     % log file:
@@ -86,8 +86,8 @@ classdef xbmini < handle
             % prompts the user to window the region over which to calculate
             % the descent rate. The average descent rate (ft/s) is 
             % calculated over this windowed region and is used to update
-            % the object's descentrate property. descentrate is also an
-            % explicit output of this method
+            % the object's descentrate property. 
+            % descentrate is also an explicit output of this method
             [idx, ax] = xbmini.windowdata(dataObj.altitude_feet);
             
             % Because we just plotted altitude vs. data index, update the
@@ -120,10 +120,11 @@ classdef xbmini < handle
       
         
         function save(dataObj)
-            % SAVE saves an instance of xbmini object to a MAT file. 
-            % File is saved in the same directory as the analyzed log file.
+            % SAVE saves an instance of the xbmini object to a MAT file. 
+            % File is saved in the same directory as the analyzed log file 
+            % with the same name as the log.
             %
-            % Existing MAT file will be overwritten
+            % Any existing MAT file of the same name will be overwritten
             [pathname, filename] = fileparts(dataObj.filepath);
             save(fullfile(pathname, [filename '.mat']), 'dataObj');
         end
@@ -288,12 +289,17 @@ classdef xbmini < handle
         
         function [dataidx, ax] = windowdata(ydata)
             % WINDOWDATA plots the input data array, ydata, with respect to
-            % its data indices along with two vertical lines that can be
-            % used by the user to window the plotted data. Execution is
-            % blocked by UIWAIT and MSGBOX to allow the user to zoom/pan 
-            % the axes and manipulate the window lines as desired. Once the
-            % dialog is closed the data indices of the window lines,
-            % dataidx, and handle to the axes window are returned.
+            % its data indices along with two vertical lines for the user 
+            % to window the plotted data. 
+            % 
+            % Execution is blocked by UIWAIT and MSGBOX to allow the user 
+            % to zoom/pan the axes and manipulate the window lines as 
+            % desired. Once the dialog is closed the data indices of the 
+            % window lines, dataidx, and handle to the axes are returned.
+            %
+            % Because ydata is plotted with respect to its data indices,
+            % the indices are floored to the nearest integer in order to
+            % mitigate indexing issues.
             h.fig = figure('WindowButtonUpFcn', @xbmini.stopdrag); % Set the mouse button up Callback on figure creation
             h.ax = axes('Parent', h.fig);
             plot(ydata, 'Parent', h.ax);
