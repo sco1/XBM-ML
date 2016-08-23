@@ -30,6 +30,7 @@ classdef xbmini < handle
         gyro_x            % X gyro (New XBM only)
         gyro_y            % Y gyro (New XBM only)
         gyro_z            % Z gyro (New XBM only)
+        quat_w            % W quaternion (New XBM only)
         quat_x            % X quaternion (New XBM only)
         quat_y            % Y quaternion (New XBM only)
         quat_z            % Z quaternion (New XBM only)
@@ -54,7 +55,7 @@ classdef xbmini < handle
     end
     
     methods
-        function dataObj = xbmini(filepath, loggertype)
+        function dataObj = xbmini(filepath)
             % Check to see if a filepath has been passed to xbmini, prompt
             % user to select a file if one hasn't been passed
             if exist('filepath', 'var')
@@ -66,11 +67,18 @@ classdef xbmini < handle
             end
             % TODO: Check for empty/invalid path
             
-            % TODO: Check loggertype input and set properties accordingly
             dataObj.analysisdate = xbmini.getdate;
             dataObj.nlines = xbmini.countlines(dataObj.filepath);
             initializedata(dataObj);
-            readrawdata(dataObj);
+            
+            % Pick appropriate data parser based on logger type
+            getLoggerType(dataObj);
+            if dataObj.islegacy
+                readrawdata_legacy(dataObj);
+            else
+                readrawdata(dataObj);
+            end
+            
             convertdata(dataObj);
             calcaltitude(dataObj);
         end
@@ -144,6 +152,26 @@ classdef xbmini < handle
     end
     
     methods (Access = private)
+        function getLoggerType(dataObj)
+            % Pull logger type from the first line of the data file header
+            fID = fopen(dataObj.filepath, 'r');
+            tline = fgetl(fID);  % Get first line of data
+            fclose(fID);
+            
+            dataObj.loggertype = regexp(tline, '(X16\S*)(?=\,)', 'Match');
+            switch dataObj.loggertype
+                case 'X16-B1100-mini'
+                    dataObj.islegacy = true;
+                case 'X16-ham'
+                    dataObj.islegacy = false;
+                otherwise
+                    msgID = 'xbmini:getLoggerType:UnsupportedDevice';
+                    error(msgID, ...
+                          'Unsupported data logger ''%s'' detected', dataObj.loggertype);
+            end
+        end
+        
+        
         function initializedata(dataObj)
             % Preallocate data arrays based on number of lines in the data
             % file
@@ -160,6 +188,7 @@ classdef xbmini < handle
                 dataObj.gyro_x = zeros(dataObj.ndatapoints, 1);
                 dataObj.gyro_y = zeros(dataObj.ndatapoints, 1);
                 dataObj.gyro_z = zeros(dataObj.ndatapoints, 1);
+                dataObj.quat_w = zeros(dataObj.ndatapoints, 1);
                 dataObj.quat_x = zeros(dataObj.ndatapoints, 1);
                 dataObj.quat_y = zeros(dataObj.ndatapoints, 1);
                 dataObj.quat_z = zeros(dataObj.ndatapoints, 1);
@@ -252,18 +281,19 @@ classdef xbmini < handle
             % Column 5:  X gyro
             % Column 6:  Y gyro
             % Column 7:  Z gyro
-            % Column 8:  X quaternion
-            % Column 9:  Y quaternion
-            % Column 10: Z quaternion
-            % Column 11: X ???
-            % Column 12: Y ???
-            % Column 13: Z ???
-            % Column 14: Pressure       (Pascal, integer)        *Sample rate may be different than IMU
-            % Column 15: Temperature    (mill-degree C, integer) *Sample rate may be different than IMU
+            % Column 8:  W quaternion
+            % Column 9:  X quaternion
+            % Column 10: Y quaternion
+            % Column 11: Z quaternion
+            % Column 12: X ???
+            % Column 13: Y ???
+            % Column 14: Z ???
+            % Column 15: Pressure       (Pascal, integer)        *Sample rate may be different than IMU
+            % Column 16: Temperature    (mill-degree C, integer) *Sample rate may be different than IMU
             
             fID = fopen(dataObj.filepath);
             hlines = dataObj.nheaderlines;
-            formatSpec = '%f %d %d %d %d %d %d %d %d %f %f %f %d %d %d %d %d';
+            formatSpec = '%f %d %d %d %d %d %d %f %f %f %f %d %d %d %d %d';
             
             step = 1;
             while ~feof(fID)
@@ -294,14 +324,15 @@ classdef xbmini < handle
                 dataObj.gyro_x(idx_start:idx_end)      = segarray{5};
                 dataObj.gyro_y(idx_start:idx_end)      = segarray{6};
                 dataObj.gyro_z(idx_start:idx_end)      = segarray{7};
-                dataObj.quat_x(idx_start:idx_end)      = segarray{8};
-                dataObj.quat_y(idx_start:idx_end)      = segarray{9};
-                dataObj.quat_z(idx_start:idx_end)      = segarray{10};
-                dataObj.m_x(idx_start:idx_end)         = segarray{11};
-                dataObj.m_y(idx_start:idx_end)         = segarray{12};
-                dataObj.m_z(idx_start:idx_end)         = segarray{13};
-                dataObj.pressure(idx_start:idx_end)    = segarray{14};
-                dataObj.temperature(idx_start:idx_end) = segarray{15};
+                dataObj.quat_w(idx_start:idx_end)      = segarray{8};
+                dataObj.quat_x(idx_start:idx_end)      = segarray{9};
+                dataObj.quat_y(idx_start:idx_end)      = segarray{10};
+                dataObj.quat_z(idx_start:idx_end)      = segarray{11};
+                dataObj.m_x(idx_start:idx_end)         = segarray{12};
+                dataObj.m_y(idx_start:idx_end)         = segarray{13};
+                dataObj.m_z(idx_start:idx_end)         = segarray{14};
+                dataObj.pressure(idx_start:idx_end)    = segarray{15};
+                dataObj.temperature(idx_start:idx_end) = segarray{16};
                 
                 step = step+1;
             end
