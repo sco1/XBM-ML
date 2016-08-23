@@ -65,7 +65,12 @@ classdef xbmini < handle
                 [file, pathname] = uigetfile('*.csv', 'Select a XB-mini log file (*.csv)');
                 dataObj.filepath = [pathname file];
             end
-            % TODO: Check for empty/invalid path
+            
+            if ~exist(dataObj.filepath, 'file')
+                msgID = 'xbmini:xbmini:InvalidDataPath';
+                error(msgID, ...
+                      'Path to data file is not valid: %s', dataObj.filepath);
+            end
             
             dataObj.analysisdate = xbmini.getdate;
             dataObj.nlines = xbmini.countlines(dataObj.filepath);
