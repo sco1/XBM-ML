@@ -163,7 +163,8 @@ classdef xbmini < handle
             tline = fgetl(fID);  % Get first line of data
             fclose(fID);
             
-            dataObj.loggertype = regexp(tline, '(X16\S*)(?=\,)', 'Match');
+            tmp = regexp(tline, '(X16\S*)(?=\,)', 'Match');
+            dataObj.loggertype = tmp{1};  % De-nest cell
             switch dataObj.loggertype
                 case 'X16-B1100-mini'
                     dataObj.islegacy = true;
