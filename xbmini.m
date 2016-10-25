@@ -1,4 +1,4 @@
-classdef xbmini < handle
+classdef xbmini < handle & AirdropData
     % XBMINI is a MATLAB class definition providing the user with a set of
     % methods to parse and analyze raw data files output by GCDC XBmini
     % datalogger
@@ -156,7 +156,7 @@ classdef xbmini < handle
         end
     end
     
-    methods (Access = private)
+    methods (Hidden, Access = protected)
         function getLoggerType(dataObj)
             % Pull logger type from the first line of the data file header
             fID = fopen(dataObj.filepath, 'r');
@@ -189,7 +189,7 @@ classdef xbmini < handle
             dataObj.pressure    = zeros(dataObj.ndatapoints, 1);
             dataObj.temperature = zeros(dataObj.ndatapoints, 1);
             
-            if strcmp(dataObj.loggertype, 'new')
+            if ~dataObj.islegacy
                 % Initialize fields for new XBM's IMU data
                 dataObj.gyro_x = zeros(dataObj.ndatapoints, 1);
                 dataObj.gyro_y = zeros(dataObj.ndatapoints, 1);
@@ -380,58 +380,6 @@ classdef xbmini < handle
     
     
     methods (Static)
-        function date = getdate()
-            % Generate current local timestamp and format according to
-            % ISO 8601: yyyy-mm-ddTHH:MM:SS+/-HH:MMZ
-            if ~verLessThan('MATLAB', '8.4')  % datetime added in R2014b
-                timenow = datetime('now', 'TimeZone', 'local');
-                formatstr = sprintf('yyyy-mm-ddTHH:MM:SS%sZ', char(tzoffset(timenow)));
-            else
-                UTCoffset = -java.util.Date().getTimezoneOffset/60;  % See what Java thinks your TZ offset is
-                timenow = clock;
-                formatstr = sprintf('yyyy-mm-ddTHH:MM:SS%i:00Z', UTCoffset);
-            end
-            
-            date = datestr(timenow, formatstr);
-        end
-        
-        
-        function nlines = countlines(filepath)
-            % COUNTLINES counts the number of lines present in the 
-            % specified file, filepath, passed as an absolute path.
-            % COUNTLINES attempts to utilize OS specific calls but utilizes
-            % MATLAB's built-ins as a fallback.
-            
-            % Attempt to use system specific calls, otherwise use MATLAB
-            if ispc
-                syscall = sprintf('find /v /c "" "%s"', filepath);  % Count lines in file
-                [~, cmdout] = system(syscall);
-                % cmdout is of form: ---------- filepath: nlines
-                % We can parse this with a regex that searches for 1 or
-                % more digits anchored by a colon + whitespace
-                tmp = regexp(cmdout, '(?<=(:\s))(\d*)', 'match');
-                nlines = str2double(tmp{1});
-            elseif ismac || isunix
-                syscall = sprintf('wc -l < "%s"', filepath);
-                [~, cmdout] = system(syscall);
-                % wc -l returns number of lines directly
-                nlines = str2double(cmdout);
-            else
-                % Can't determine OS, use MATLAB instead
-                fID = fopen(filepath, 'rt');
-                
-                blocksize = 16384;  % Size of block to read in, bytes
-                nlines = 0;
-                while ~feof(fID)
-                    % Read in CSV file as binary file in chunks, count the
-                    % number of line feed characters (ASCII 10)
-                    nlines = nlines + sum(fread(fID, blocksize, 'char') == char(10));
-                end
-                
-                fclose(fID);
-            end
-        end
-        
         function [dataidx, ax] = windowdata(ydata)
             % WINDOWDATA plots the input data array, ydata, with respect to
             % its data indices along with two vertical lines for the user 
@@ -477,78 +425,6 @@ classdef xbmini < handle
             
             % Clean up
             delete([xlisten, ylisten]);
-        end
-    end
-    
-    
-    methods (Static, Access = private)
-        function startdrag(lineObj, ~, h)
-            % Helper function for data windowing, sets figure
-            % WindowButtonMotionFcn callback to dragline helper
-            % while line is being clicked on & dragged
-            h.fig.WindowButtonMotionFcn = {@xbmini.dragline, h, lineObj};
-        end
-        
-        
-        function stopdrag(hObj, ~)
-            % Helper function for data windowing, clears figure window
-            % WindowButtonMotionFcn callback when mouse button is released
-            % after dragging the line
-            hObj.WindowButtonMotionFcn = '';
-        end
-        
-        
-        function checklinesx(~, ~, h)
-            % Helper function for data windowing, checks the X indices of
-            % the vertical lines to make sure they're still within the X
-            % axis limits of the data axes object
-            currxlim = h.ax.XLim;
-            currlinex_1 = h.line_1.XData(1);
-            currlinex_2 = h.line_2.XData(1);
-            
-            % Set X coordinate of any line outside the axes limits to the
-            % axes limit
-            if currlinex_1 < currxlim(1)
-                h.line_1.XData = [1, 1]*currxlim(1);
-            end
-            
-            if currlinex_1 > currxlim(2)
-                h.line_1.XData = [1, 1]*currxlim(2);
-            end
-            
-            if currlinex_2 < currxlim(1)
-                h.line_2.XData = [1, 1]*currxlim(1);
-            end
-            
-            if currlinex_2 > currxlim(2)
-                h.line_2.XData = [1, 1]*currxlim(2);
-            end
-            
-        end
-        
-        
-        function changelinesy(~, ~, h)
-            % Helper function for data windowing, sets the height of both
-            % vertical lines to the height of the axes object
-            h.line_1.YData = ylim(h.ax);
-            h.line_2.YData = ylim(h.ax);
-        end
-
-        
-        function dragline(~, ~, h, lineObj)
-            % Helper function for data windowing, updates the x coordinate
-            % of the dragged line to the current location of the mouse
-            % button
-            currentX = h.ax.CurrentPoint(1, 1);
-            
-            % Prevent dragging outside of the current axes limits
-            if currentX < h.ax.XLim(1)
-                lineObj.XData = [1, 1]*h.ax.XLim(1);
-            elseif currentX > h.ax.XLim(2)
-                lineObj.XData = [1, 1]*h.ax.XLim(2);
-            else
-                lineObj.XData = [1, 1]*currentX;
-            end
         end
     end
 end
