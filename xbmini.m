@@ -96,11 +96,14 @@ classdef xbmini < handle & AirdropData
             % windowed region is used to update the object's pressure_groundlevel 
             % private property. The object's pressure altitude is also 
             % recalculated using the updated ground level pressure.
-            [idx, ax] = xbmini.windowdata(dataObj.pressure);
+            h.fig = figure;
+            h.ax = axes;
+            h.ls = plot(h.ax, dataObj.pressure);
+            idx = xbmini.windowdata(h.ls);
             
             % Calculate and plot average pressure in the windowed region
             dataObj.pressure_groundlevel = mean(dataObj.pressure(idx(1):idx(2)));
-            line(idx, ones(2, 1)*dataObj.pressure_groundlevel, 'Color', 'r', 'Parent', ax);
+            line(idx, ones(2, 1)*dataObj.pressure_groundlevel, 'Color', 'r', 'Parent', h.ax);
             
             % Recalculate altitudes
             calcaltitude(dataObj);
@@ -114,28 +117,31 @@ classdef xbmini < handle & AirdropData
             % calculated over this windowed region and is used to update
             % the object's descentrate property. 
             % descentrate is also an explicit output of this method
-            [idx, ax] = xbmini.windowdata(dataObj.altitude_feet);
+            h.fig = figure;
+            h.ax = axes;
+            h.ls = plot(h.ax, dataObj.altitude_feet);
+            idx = xbmini.windowdata(h.ls);
             
             % Because we just plotted altitude vs. data index, update the
             % plot to altitude vs. time but save the limits and use them so
             % the plot doesn't get zoomed out
-            oldxlim = floor(ax.XLim);
+            oldxlim = floor(h.ax.XLim);
             
             % Catch indexing issues if plot isn't zoomed "properly"
             oldxlim(oldxlim < 1) = 1; 
             oldxlim(oldxlim > length(dataObj.altitude_feet)) = length(dataObj.altitude_feet);
             
-            oldylim = ax.YLim;
-            plot(dataObj.time_pressure, dataObj.altitude_feet, 'Parent', ax);
-            xlim(ax, dataObj.time_pressure(oldxlim));
-            ylim(ax, oldylim);
+            oldylim = h.ax.YLim;
+            plot(dataObj.time_pressure, dataObj.altitude_feet, 'Parent', h.ax);
+            xlim(h.ax, dataObj.time_pressure(oldxlim));
+            ylim(h.ax, oldylim);
             
             % Calculate and plot linear fit
             myfit = polyfit(dataObj.time_pressure(idx(1):idx(2)), dataObj.altitude_feet(idx(1):idx(2)), 1);
             altitude_feet_fit = dataObj.time_pressure(idx(1):idx(2)).*myfit(1) + myfit(2);
-            hold(ax, 'on');
-            plot(dataObj.time_pressure(idx(1):idx(2)), altitude_feet_fit, 'r', 'Parent', ax)
-            hold(ax, 'off');
+            hold(h.ax, 'on');
+            plot(dataObj.time_pressure(idx(1):idx(2)), altitude_feet_fit, 'r', 'Parent', h.ax)
+            hold(h.ax, 'off');
             xlabel('Time (s)');
             ylabel('Altitude (ft. AGL)');
             
@@ -378,53 +384,13 @@ classdef xbmini < handle & AirdropData
         end
     end
     
-    
-    methods (Static)
-        function [dataidx, ax] = windowdata(ydata)
-            % WINDOWDATA plots the input data array, ydata, with respect to
-            % its data indices along with two vertical lines for the user 
-            % to window the plotted data. 
-            % 
-            % Execution is blocked by UIWAIT and MSGBOX to allow the user 
-            % to zoom/pan the axes and manipulate the window lines as 
-            % desired. Once the dialog is closed the data indices of the 
-            % window lines, dataidx, and handle to the axes are returned.
-            %
-            % Because ydata is plotted with respect to its data indices,
-            % the indices are floored to the nearest integer in order to
-            % mitigate indexing issues.
-            h.fig = figure('WindowButtonUpFcn', @xbmini.stopdrag); % Set the mouse button up Callback on figure creation
-            h.ax = axes('Parent', h.fig);
-            plot(ydata, 'Parent', h.ax);
+    methods (Static, Hidden)
+        function xbmarray = batchxbmini(pathname)
+            flist = dir(fullfile(pathname, 'DATA-*.csv'));
             
-            % Create our window lines, set the default line X locations at
-            % 25% and 75% of the axes limits
-            currxlim = xlim;
-            axeswidth = currxlim(2) - currxlim(1);
-            h.line_1 = line(ones(1, 2)*axeswidth*0.25, ylim(h.ax), ...
-                            'Color', 'g', ...
-                            'ButtonDownFcn', {@xbmini.startdrag, h} ...
-                            );
-            h.line_2 = line(ones(1, 2)*axeswidth*0.75, ylim(h.ax), ...
-                            'Color', 'g', ...
-                            'ButtonDownFcn', {@xbmini.startdrag, h} ...
-                            );
-            
-            % Add appropriate listeners to the X and Y axes to ensure
-            % window lines are visible and the appropriate height
-            xlisten = addlistener(h.ax, 'XLim', 'PostSet', @(hObj,eventdata) xbmini.checklinesx(hObj, eventdata, h));
-            ylisten = addlistener(h.ax, 'YLim', 'PostSet', @(hObj,eventdata) xbmini.changelinesy(hObj, eventdata, h));
-            
-            % Use uiwait to allow the user to manipulate the axes and
-            % window lines as desired
-            uiwait(msgbox('Window Region of Interest Then Press OK'))
-            
-            % Set outputs
-            dataidx = floor(sort([h.line_1.XData(1), h.line_2.XData(1)]));
-            ax = h.ax;
-            
-            % Clean up
-            delete([xlisten, ylisten]);
+            for ii = 1:length(flist)
+                xbmarray(ii) = xbmini(fullfile(flist(ii).folder, flist(ii).name));
+            end
         end
     end
 end
