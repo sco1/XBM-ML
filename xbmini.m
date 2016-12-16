@@ -34,9 +34,9 @@ classdef xbmini < handle & AirdropData
         quat_x            % X quaternion (New XBM only)
         quat_y            % Y quaternion (New XBM only)
         quat_z            % Z quaternion (New XBM only)
-        m_x               % X ??? (New XBM only)
-        m_y               % Y ??? (New XBM only)
-        m_z               % Z ??? (New XBM only)
+        mag_x             % X magnetometer (New XBM only)
+        mag_y             % Y magnetometer (New XBM only)
+        mag_z             % Z magnetometer (New XBM only)
         pressure          % Raw barometric pressure, pascals
         temperature       % Temperature, Celsius
         altitude_meters   % Pressure altitude, meters, derived from pressure
@@ -204,9 +204,9 @@ classdef xbmini < handle & AirdropData
                 dataObj.quat_x = zeros(dataObj.ndatapoints, 1);
                 dataObj.quat_y = zeros(dataObj.ndatapoints, 1);
                 dataObj.quat_z = zeros(dataObj.ndatapoints, 1);
-                dataObj.m_x    = zeros(dataObj.ndatapoints, 1);
-                dataObj.m_y    = zeros(dataObj.ndatapoints, 1);
-                dataObj.m_z    = zeros(dataObj.ndatapoints, 1);
+                dataObj.mag_x    = zeros(dataObj.ndatapoints, 1);
+                dataObj.mag_y    = zeros(dataObj.ndatapoints, 1);
+                dataObj.mag_z    = zeros(dataObj.ndatapoints, 1);
             end
         end
         
@@ -297,9 +297,9 @@ classdef xbmini < handle & AirdropData
             % Column 9:  X quaternion
             % Column 10: Y quaternion
             % Column 11: Z quaternion
-            % Column 12: X ???
-            % Column 13: Y ???
-            % Column 14: Z ???
+            % Column 12: X magnetometer
+            % Column 13: Y magnetometer
+            % Column 14: Z magnetometer
             % Column 15: Pressure       (Pascal, integer)        *Sample rate may be different than IMU
             % Column 16: Temperature    (mill-degree C, integer) *Sample rate may be different than IMU
             
@@ -340,9 +340,9 @@ classdef xbmini < handle & AirdropData
                 dataObj.quat_x(idx_start:idx_end)      = segarray{9};
                 dataObj.quat_y(idx_start:idx_end)      = segarray{10};
                 dataObj.quat_z(idx_start:idx_end)      = segarray{11};
-                dataObj.m_x(idx_start:idx_end)         = segarray{12};
-                dataObj.m_y(idx_start:idx_end)         = segarray{13};
-                dataObj.m_z(idx_start:idx_end)         = segarray{14};
+                dataObj.mag_x(idx_start:idx_end)         = segarray{12};
+                dataObj.mag_y(idx_start:idx_end)         = segarray{13};
+                dataObj.mag_z(idx_start:idx_end)         = segarray{14};
                 dataObj.pressure(idx_start:idx_end)    = segarray{15};
                 dataObj.temperature(idx_start:idx_end) = segarray{16};
                 
@@ -384,8 +384,10 @@ classdef xbmini < handle & AirdropData
         end
     end
     
-    methods (Static, Hidden)
+    methods (Static)
         function xbmarray = batchxbmini(pathname)
+            % Batch process a folder of XBM data files
+            % Returns an array of xbmini objects
             flist = dir(fullfile(pathname, 'DATA-*.csv'));
             
             for ii = 1:length(flist)
