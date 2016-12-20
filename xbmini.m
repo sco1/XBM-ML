@@ -151,14 +151,19 @@ classdef xbmini < handle & AirdropData
         end
       
         
-        function save(dataObj)
+        function save(dataObj, isverbose)
             % SAVE saves an instance of the xbmini object to a MAT file. 
             % File is saved in the same directory as the analyzed log file 
             % with the same name as the log.
             %
             % Any existing MAT file of the same name will be overwritten
             [pathname, filename] = fileparts(dataObj.filepath);
-            save(fullfile(pathname, [filename '.mat']), 'dataObj');
+            savefilepath = fullfile(pathname, [filename '.mat']);
+            
+            if ~exist('isverbose', 'var')
+                isverbose = false;
+            end
+            save@AirdropData(dataObj, savefilepath, isverbose)  % Punt the save call to the super
         end
     end
     
