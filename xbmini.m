@@ -388,10 +388,10 @@ classdef xbmini < handle & AirdropData
         function xbmarray = batchxbmini(pathname)
             % Batch process a folder of XBM data files
             % Returns an array of xbmini objects
-            flist = dir(fullfile(pathname, 'DATA-*.csv'));
+            flist = AirdropData.subdir(fullfile(pathname, 'DATA-*.csv'));
             
             for ii = 1:length(flist)
-                xbmarray(ii) = xbmini(fullfile(flist(ii).folder, flist(ii).name));
+                xbmarray(ii) = xbmini(fullfile(flist(ii).name));
             end
         end
     end
