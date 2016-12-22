@@ -58,7 +58,7 @@ classdef xbmini < handle & AirdropData
         function dataObj = xbmini(filepath)
             % Check to see if a filepath has been passed to xbmini, prompt
             % user to select a file if one hasn't been passed
-            if exist('filepath', 'var')
+            if nargin == 1
                 filepath = fullfile(filepath);  % Ensure correct file separators
                 dataObj.filepath = filepath;
             else
@@ -165,9 +165,9 @@ classdef xbmini < handle & AirdropData
             if isempty(p.Results.savefilepath)
                 [pathname, filename] = fileparts(dataObj.filepath);
                 if p.Results.SaveAsClass
-                    savefilepath = fullfile(pathname, [filename '_noclass.mat']);
-                else
                     savefilepath = fullfile(pathname, [filename '.mat']);
+                else
+                    savefilepath = fullfile(pathname, [filename '_noclass.mat']);
                 end
             else
                 savefilepath = p.Results.savefilepath;
@@ -184,6 +184,12 @@ classdef xbmini < handle & AirdropData
             tline = fgetl(fID);  % Get first line of data
             fclose(fID);
             
+            if ~ischar(tline)
+                msgID = 'xbmini:getLoggerType:InvalidDataFile';
+                error(msgID, ...
+                      'Invalid header detected, data file may be empty: %s', dataObj.filepath);
+            end
+
             tmp = regexp(tline, '(X16\S*)(?=\,)', 'Match');
             dataObj.loggertype = tmp{1};  % De-nest cell
             switch dataObj.loggertype
@@ -400,7 +406,7 @@ classdef xbmini < handle & AirdropData
     end
     
     methods (Static)
-        function xbmarray = batchxbmini(pathname)
+        function xbmarray = batch(pathname)
             % Batch process a folder of XBM data files
             % Returns an array of xbmini objects
             flist = AirdropData.subdir(fullfile(pathname, 'DATA-*.csv'));
