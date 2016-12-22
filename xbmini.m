@@ -151,7 +151,7 @@ classdef xbmini < handle & AirdropData
         end
       
         
-        function save(dataObj, isverbose)
+        function save(dataObj, varargin)
             % SAVE saves an instance of the xbmini object to a MAT file. 
             % File is saved in the same directory as the analyzed log file 
             % with the same name as the log.
@@ -160,10 +160,34 @@ classdef xbmini < handle & AirdropData
             [pathname, filename] = fileparts(dataObj.filepath);
             savefilepath = fullfile(pathname, [filename '.mat']);
             
-            if ~exist('isverbose', 'var')
-                isverbose = false;
+            p = inputParser;
+            p.FunctionName = 'xbmini:save';
+            p.addParameter('savefilepath', savefilepath, @ischar);
+            p.addParameter('noclass', false, @islogical);
+            p.addParameter('verboseoutput', false, @islogical);
+            p.parse(varargin{:});
+            
+            if p.Results.noclass
+                % Save property values only, not class instance
+                propstosave = properties(dataObj);  % Get list of public properties
+                
+                for ii = 1:length(propstosave)
+                    prop = propstosave{ii};
+                    tmp.(prop) = dataObj.(prop);
+                end
+
+                save(p.Results.savefilepath, '-struct', 'tmp');
+            else
+                save(p.Results.savefilepath, 'dataObj');
             end
-            save@AirdropData(dataObj, savefilepath, isverbose)  % Punt the save call to the super
+                       
+            if p.Results.verboseoutput
+                if p.results.noclass
+                    fprintf('%s object public properties saved to ''%s''\n', class(dataObj), p.Results.savefilepath);
+                else
+                    fprintf('%s object instance saved to ''%s''\n', class(dataObj), p.Results.savefilepath);
+                end
+            end
         end
     end
     
@@ -209,9 +233,9 @@ classdef xbmini < handle & AirdropData
                 dataObj.quat_x = zeros(dataObj.ndatapoints, 1);
                 dataObj.quat_y = zeros(dataObj.ndatapoints, 1);
                 dataObj.quat_z = zeros(dataObj.ndatapoints, 1);
-                dataObj.mag_x    = zeros(dataObj.ndatapoints, 1);
-                dataObj.mag_y    = zeros(dataObj.ndatapoints, 1);
-                dataObj.mag_z    = zeros(dataObj.ndatapoints, 1);
+                dataObj.mag_x  = zeros(dataObj.ndatapoints, 1);
+                dataObj.mag_y  = zeros(dataObj.ndatapoints, 1);
+                dataObj.mag_z  = zeros(dataObj.ndatapoints, 1);
             end
         end
         
