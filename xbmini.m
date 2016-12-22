@@ -156,15 +156,10 @@ classdef xbmini < handle & AirdropData
             % File is saved in the same directory as the analyzed log file 
             % with the same name as the log.
             %
-            % Any existing MAT file of the same name will be overwritten
-            
-            p = inputParser;
+            % Any existing MAT file of the same name will be overwritten           
+            p = AirdropData.saveargparse(varargin{:});
             p.FunctionName = 'xbmini:save';
-            p.addParameter('savefilepath', '', @ischar);
-            p.addParameter('SaveAsClass', true, @islogical);
-            p.addParameter('verboseoutput', false, @islogical);
-            p.parse(varargin{:});
-            
+
             % Modify the savefilepath if necessary, punt the rest to the
             % super
             if isempty(p.Results.savefilepath)
