@@ -10,7 +10,7 @@ classdef xbmini < handle & AirdropData
     % xbmini methods:
     %     findgroundlevelpressure - Interactively identify ground level pressure
     %     finddescentrate         - Interactively identify payload descent rate
-    %     save                    - Save xbmini instance to MAT file
+    %     save                    - Save xbmini data to a MAT file
     %
     % xbmini static methods:
     %     getdate    - Generate current local timestamp in ISO 8601 format
@@ -157,15 +157,24 @@ classdef xbmini < handle & AirdropData
             % with the same name as the log.
             %
             % Any existing MAT file of the same name will be overwritten
-            [pathname, filename] = fileparts(dataObj.filepath);
-            savefilepath = fullfile(pathname, [filename '.mat']);
             
             p = inputParser;
             p.FunctionName = 'xbmini:save';
-            p.addParameter('savefilepath', savefilepath, @ischar);
+            p.addParameter('savefilepath', '', @ischar);
             p.addParameter('noclass', false, @islogical);
             p.addParameter('verboseoutput', false, @islogical);
             p.parse(varargin{:});
+            
+            if isempty(p.Results.savefilepath)
+                [pathname, filename] = fileparts(dataObj.filepath);
+                if p.Results.noclass
+                    savefilepath = fullfile(pathname, [filename '_noclass.mat']);
+                else
+                    savefilepath = fullfile(pathname, [filename '.mat']);
+                end
+            else
+                savefilepath = p.Results.savefilepath;
+            end
             
             if p.Results.noclass
                 % Save property values only, not class instance
@@ -176,9 +185,9 @@ classdef xbmini < handle & AirdropData
                     tmp.(prop) = dataObj.(prop);
                 end
 
-                save(p.Results.savefilepath, '-struct', 'tmp');
+                save(savefilepath, '-struct', 'tmp');
             else
-                save(p.Results.savefilepath, 'dataObj');
+                save(savefilepath, 'dataObj');
             end
                        
             if p.Results.verboseoutput
