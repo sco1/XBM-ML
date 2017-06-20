@@ -138,12 +138,22 @@ classdef xbmini < handle & AirdropData
             
             % Calculate and plot linear fit
             myfit = polyfit(dataObj.time_pressure(idx(1):idx(2)), dataObj.altitude_feet(idx(1):idx(2)), 1);
-            altitude_feet_fit = dataObj.time_pressure(idx(1):idx(2)).*myfit(1) + myfit(2);
             hold(h.ax, 'on');
-            plot(dataObj.time_pressure(idx(1):idx(2)), altitude_feet_fit, 'r', 'Parent', h.ax)
+            h.fitls = plot(dataObj.time_pressure(idx), polyval(myfit, dataObj.time_pressure(idx)), 'r', 'Parent', h.ax);
             hold(h.ax, 'off');
             xlabel('Time (s)');
             ylabel('Altitude (ft. AGL)');
+            
+            % Add descent rate annotation
+            % Text annotation coordinates are tail to head
+            fitmidpointidx = floor(sum(idx)/2);
+            fitmidpoint = [dataObj.time_pressure(fitmidpointidx), polyval(myfit, dataObj.time_pressure(fitmidpointidx))];
+            
+            annotationx = coord2norm(h.ax, [fitmidpoint(1), fitmidpoint(1)], 0);  % Straight up from midpoint
+            annotationtaily = polyval(myfit, dataObj.time_pressure(floor(idx(1) + 0.25*diff(idx)))); 
+            [~, annotationy] = coord2norm(h.ax, 0, [annotationtaily, fitmidpoint(2)]);
+            annotationstr = sprintf('SS RoF: %.2f ft/s', abs(myfit(1)));
+            annotation(h.fig, 'textarrow', annotationx, annotationy, 'String', annotationstr);
             
             % Set outputs
             descentrate = myfit(1);
@@ -164,7 +174,7 @@ classdef xbmini < handle & AirdropData
             % super
             if isempty(p.Results.savefilepath)
                 [pathname, filename] = fileparts(dataObj.filepath);
-                if p.Results.SaveAsClass
+                if p.Results.saveasclass
                     savefilepath = fullfile(pathname, [filename '.mat']);
                 else
                     savefilepath = fullfile(pathname, [filename '_noclass.mat']);
@@ -173,7 +183,7 @@ classdef xbmini < handle & AirdropData
                 savefilepath = p.Results.savefilepath;
             end
             
-            save@AirdropData(savefilepath, dataObj, p.Results.verboseoutput, p.Results.SaveAsClass)
+            save@AirdropData(savefilepath, dataObj, p.Results.verboseoutput, p.Results.saveasclass)
         end
     end
     
@@ -190,12 +200,12 @@ classdef xbmini < handle & AirdropData
                       'Invalid header detected, data file may be empty: %s', dataObj.filepath);
             end
 
-            tmp = regexp(tline, '(X16\S*)(?=\,)', 'Match');
+            tmp = regexp(tline, '(X16\S*)(?=\,)|(HAM-IMU\+alt)(?=\,)', 'Match');
             dataObj.loggertype = tmp{1};  % De-nest cell
             switch dataObj.loggertype
                 case 'X16-B1100-mini'
                     dataObj.islegacy = true;
-                case 'X16-ham'
+                case {'X16-ham', 'HAM-IMU+alt'}
                     dataObj.islegacy = false;
                 otherwise
                     msgID = 'xbmini:getLoggerType:UnsupportedDevice';
@@ -361,9 +371,9 @@ classdef xbmini < handle & AirdropData
                 dataObj.quat_x(idx_start:idx_end)      = segarray{9};
                 dataObj.quat_y(idx_start:idx_end)      = segarray{10};
                 dataObj.quat_z(idx_start:idx_end)      = segarray{11};
-                dataObj.mag_x(idx_start:idx_end)         = segarray{12};
-                dataObj.mag_y(idx_start:idx_end)         = segarray{13};
-                dataObj.mag_z(idx_start:idx_end)         = segarray{14};
+                dataObj.mag_x(idx_start:idx_end)       = segarray{12};
+                dataObj.mag_y(idx_start:idx_end)       = segarray{13};
+                dataObj.mag_z(idx_start:idx_end)       = segarray{14};
                 dataObj.pressure(idx_start:idx_end)    = segarray{15};
                 dataObj.temperature(idx_start:idx_end) = segarray{16};
                 
@@ -392,7 +402,7 @@ classdef xbmini < handle & AirdropData
             dataObj.time_pressure = dataObj.time(pressidx);
             dataObj.pressure = dataObj.pressure(pressidx);
             
-            % TODO: Convert gyro, quaternion, M-thing (wtf is this) once
+            % TODO: Convert gyro, quaternion, magnetometer once
             % GCDC provides documentation
         end
         
