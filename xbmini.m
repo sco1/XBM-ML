@@ -42,6 +42,7 @@ classdef xbmini < handle & AirdropData
         altitude_meters   % Pressure altitude, meters, derived from pressure
         altitude_feet     % Pressure altitude, feet, derived from pressure
         descentrate       % Descent rate, feet per second, derived from pressure altitude and pressure time
+        allupweight
     end
     
     properties (Access = private)
