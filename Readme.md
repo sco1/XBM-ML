@@ -6,6 +6,7 @@ Initialize an `xbmini` object using an absolute filepath to the raw log file:
     myLog = xbmini(filepath);
 
 ## Properties
+### All logger types
 * `filepath`
   * Path to analyzed CSV file
 * `analysisdate`
@@ -35,12 +36,35 @@ Initialize an `xbmini` object using an absolute filepath to the raw log file:
 * `descentrate`
   * Descent rate, feet per second, derived from pressure altitude (`altitude_feet`) and `time_pressure`
 
+### New XBM Hardware
+* `gyro_x`
+  * X gyro
+* `gyro_y`
+  * Y gyro
+* `gyro_z`
+  * Z gyro
+* `quat_w`
+  * W quaternion
+* `quat_x`
+  * X quaternion
+* `quat_y`
+  * Y quaternion
+* `quat_z`
+  * Z quaternion
+* `mag_x` 
+  * X magnetometer
+* `mag_y` 
+  * Y magnetometer
+* `mag_z` 
+  * Z magnetometer
+
 NOTE: `time_temperature` and `time_pressure` may be different time vectors than `time` due to potential differences in sampling rate settings and sensor sampling rate capability.
 
 ## Methods
 ### Ordinary Methods
 * [`findgroundlevelpressure`](#findgroundlevelpressure) - Interactively identify ground level pressure
 * [`finddescentrate`](#finddescentrate) - Interactively identify payload descent rate
+* [`append`](#append) - Append another xbmini object to the end of the current object
 * [`save`](#save) - Save xbmini instance to MAT file
 
 ### Static Methods
@@ -67,6 +91,17 @@ Plot the pressure altitude (ft) data and prompts the user to window the region o
 ##### Example
     myLog = xbmini(logfilepath);
     descentrate = myLog.finddescentrate;
+
+<a name="append"></a>
+#### *xbmini*.**append**()
+##### Description
+Append a second xbmini object to the end of the current object.
+
+##### Example
+    log1 = xbmini(logfilepath1);
+    log2 = xbmini(logfilepath2);
+
+    log1.append(log2);
 
 <a name="save"></a>
 #### *xbmini*.**save**()

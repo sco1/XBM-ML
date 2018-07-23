@@ -11,7 +11,7 @@ classdef xbmini < handle & AirdropData
     % xbmini methods:
     %     findgroundlevelpressure - Interactively identify ground level pressure
     %     finddescentrate         - Interactively identify payload descent rate
-    %     append                  - Append another xbmini object
+    %     append                  - Append another xbmini object to the end of the current object
     %     save                    - Save xbmini data to a MAT file
     %
     % xbmini static methods:
@@ -449,7 +449,9 @@ classdef xbmini < handle & AirdropData
             % Returns an array of xbmini objects
             flist = AirdropData.subdir(fullfile(pathname, 'DATA-*.csv'));
             
-            for ii = 1:length(flist)
+            nfiles = numel(flist);
+            xbmarray = xbmini.empty(nfiles, 1);
+            for ii = 1:nfiles
                 xbmarray(ii) = xbmini(fullfile(flist(ii).name));
             end
         end
