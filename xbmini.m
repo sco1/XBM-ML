@@ -5,11 +5,13 @@ classdef xbmini < handle & AirdropData
     %
     % Initialize an xbmini object using an absolute filepath to the raw
     % log file:
+    %
     %     myLog = xbmini(filepath);
     % 
     % xbmini methods:
     %     findgroundlevelpressure - Interactively identify ground level pressure
     %     finddescentrate         - Interactively identify payload descent rate
+    %     append                  - Append another xbmini object
     %     save                    - Save xbmini data to a MAT file
     %
     % xbmini static methods:
@@ -42,7 +44,7 @@ classdef xbmini < handle & AirdropData
         altitude_meters   % Pressure altitude, meters, derived from pressure
         altitude_feet     % Pressure altitude, feet, derived from pressure
         descentrate       % Descent rate, feet per second, derived from pressure altitude and pressure time
-        allupweight
+        allupweight       % All up weight, pounds
     end
     
     properties (Access = private)
@@ -53,6 +55,8 @@ classdef xbmini < handle & AirdropData
         countspergee = 2048;            % Raw data counts per gee, for converting accelerometer data
         pressure_groundlevel = 101325;  % Ground level pressure, pascals, default is 101325 Pa
         islegacy                        % Boolean to differentiate between new/old XBmini
+        isappended = false              % Boolean to document when another xbmini object has been appended
+        appendignoreprops = {'filepath', 'loggertype', 'analysisdate', 'descentrate', 'allupweight'}  % Properties to ignore when appending
     end
     
     methods
@@ -75,10 +79,10 @@ classdef xbmini < handle & AirdropData
             
             dataObj.analysisdate = xbmini.getdate;
             dataObj.nlines = xbmini.countlines(dataObj.filepath);
-            initializedata(dataObj);
             
             % Pick appropriate data parser based on logger type
             getLoggerType(dataObj);
+            initializedata(dataObj);
             if dataObj.islegacy
                 readrawdata_legacy(dataObj);
             else
@@ -88,8 +92,7 @@ classdef xbmini < handle & AirdropData
             convertdata(dataObj);
             calcaltitude(dataObj);
         end
-        
-        
+
         function findgroundlevelpressure(dataObj)
             % FINDGROUNDLEVELPRESSURE Plots the raw pressure data and 
             % prompts the user to window the region of the plot where the 
@@ -109,8 +112,7 @@ classdef xbmini < handle & AirdropData
             % Recalculate altitudes
             calcaltitude(dataObj);
         end
-        
-        
+
         function descentrate = finddescentrate(dataObj)
             % FINDDESCENTRATE Plots the pressure altitude (ft) data and 
             % prompts the user to window the region over which to calculate
@@ -160,8 +162,7 @@ classdef xbmini < handle & AirdropData
             descentrate = myfit(1);
             dataObj.descentrate = descentrate;
         end
-      
-        
+
         function save(dataObj, varargin)
             % SAVE saves an instance of the xbmini object to a MAT file. 
             % File is saved in the same directory as the analyzed log file 
@@ -186,8 +187,34 @@ classdef xbmini < handle & AirdropData
             
             save@AirdropData(savefilepath, dataObj, p.Results.verboseoutput, p.Results.saveasclass)
         end
-    end
     
+        function append(dataObj, inObj)
+            % APPEND appends inObj's data to the end of dataObj's data
+            
+            % Merge data
+            propstoiter = setdiff(properties(dataObj), dataObj.appendignoreprops);
+            for ii = 1:numel(propstoiter)
+                dataObj.(propstoiter{ii}) = [dataObj.(propstoiter{ii}); inObj.(propstoiter{ii})];
+            end
+            
+            % Set appended flag for future logic
+            dataObj.isappended = true;
+            
+            % Append filenames, stash in cell array if one is not already
+            % present
+            if iscell(dataObj.filepath)
+                dataObj.filepath{end+1} = inObj.filepath;
+            else
+                dataObj.filepath = {dataObj.filepath, inObj.filepath};
+            end
+            
+            % Update private properties
+            dataObj.nlines = dataObj.nlines + inObj.nlines;
+            dataObj.ndatapoints = dataObj.ndatapoints + inObj.ndatapoints;
+        end
+    end
+
+
     methods (Hidden, Access = protected)
         function getLoggerType(dataObj)
             % Pull logger type from the first line of the data file header
