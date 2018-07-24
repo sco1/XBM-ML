@@ -175,7 +175,13 @@ classdef xbmini < handle & AirdropData
             % Modify the savefilepath if necessary, punt the rest to the
             % super
             if isempty(p.Results.savefilepath)
-                [pathname, filename] = fileparts(dataObj.filepath);
+                if dataObj.isappended
+                    [pathname, filename] = fileparts(dataObj.filepath{1});
+                    filename = [filename '_appended'];
+                else
+                    [pathname, filename] = fileparts(dataObj.filepath);
+                end
+                
                 if p.Results.saveasclass
                     savefilepath = fullfile(pathname, [filename '.mat']);
                 else
