@@ -10,3 +10,8 @@ repos:
       - id: mixed-line-ending
         exclude_types: [binary]
       - id: trailing-whitespace
+  - repo: https://github.com/sco1/pre-commit-matlab
+    rev: v1.0.0
+    hooks:
+      - id: matlab-reflow-comments
+        args: [--line-length=100]

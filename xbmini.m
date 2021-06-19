@@ -1,10 +1,8 @@
 classdef xbmini < handle & AirdropData
-    % XBMINI is a MATLAB class definition providing the user with a set of
-    % methods to parse and analyze raw data files output by GCDC XBmini
-    % datalogger
+    % XBMINI is a MATLAB class definition providing the user with a set of methods to parse and
+    % analyze raw data files output by GCDC XBmini datalogger
     %
-    % Initialize an xbmini object using an absolute filepath to the raw
-    % log file:
+    % Initialize an xbmini object using an absolute filepath to the raw log file:
     %
     %     myLog = xbmini(filepath);
     %
@@ -66,8 +64,8 @@ classdef xbmini < handle & AirdropData
 
     methods
         function dataObj = xbmini(filepath)
-            % Check to see if a filepath has been passed to xbmini, prompt
-            % user to select a file if one hasn't been passed
+            % Check to see if a filepath has been passed to xbmini, prompt user to select a file if
+            % one hasn't been passed
             if nargin == 1
                 filepath = fullfile(filepath);  % Ensure correct file separators
                 dataObj.filepath = filepath;
@@ -99,12 +97,11 @@ classdef xbmini < handle & AirdropData
         end
 
         function findgroundlevelpressure(dataObj)
-            % FINDGROUNDLEVELPRESSURE Plots the raw pressure data and
-            % prompts the user to window a 30 second region of the plot where the
-            % sensor is at ground level. The average pressure from this
-            % windowed region is used to update the object's pressure_groundlevel
-            % private property. The object's pressure altitude is also
-            % recalculated using the updated ground level pressure.
+            % FINDGROUNDLEVELPRESSURE Plots the raw pressure data and prompts the user to window a
+            % 30 second region of the plot where the sensor is at ground level. The average pressure
+            % from this windowed region is used to update the object's pressure_groundlevel private
+            % property. The object's pressure altitude is also recalculated using the updated ground
+            % level pressure.
             h.fig = figure;
             h.ax = axes;
             h.ls = plot(h.ax, dataObj.pressure);
@@ -119,20 +116,17 @@ classdef xbmini < handle & AirdropData
         end
 
         function descentrate = finddescentrate(dataObj)
-            % FINDDESCENTRATE Plots the pressure altitude (ft) data and
-            % prompts the user to window the region over which to calculate
-            % the descent rate. The average descent rate (ft/s) is
-            % calculated over this windowed region and is used to update
-            % the object's descentrate property.
-            % descentrate is also an explicit output of this method
+            % FINDDESCENTRATE Plots the pressure altitude (ft) data and prompts the user to window
+            % the region over which to calculate the descent rate. The average descent rate (ft/s)
+            % is calculated over this windowed region and is used to update the object's descentrate
+            % property. descentrate is also an explicit output of this method
             h.fig = figure;
             h.ax = axes;
             h.ls = plot(h.ax, dataObj.altitude_feet);
             idx = xbmini.windowdata(h.ls);
 
-            % Because we just plotted altitude vs. data index, update the
-            % plot to altitude vs. time but save the limits and use them so
-            % the plot doesn't get zoomed out
+            % Because we just plotted altitude vs. data index, update the plot to altitude vs. time
+            % but save the limits and use them so the plot doesn't get zoomed out
             oldxlim = floor(h.ax.XLim);
 
             % Catch indexing issues if plot isn't zoomed "properly"
@@ -152,8 +146,8 @@ classdef xbmini < handle & AirdropData
             xlabel('Time (s)');
             ylabel('Altitude (ft. AGL)');
 
-            % Add descent rate annotation
-            % Text annotation coordinates are tail to head
+            %  Add descent rate annotation
+            %  Text annotation coordinates are tail to head
             fitmidpointidx = floor(sum(idx)/2);
             fitmidpoint = [dataObj.time_pressure(fitmidpointidx), polyval(myfit, dataObj.time_pressure(fitmidpointidx))];
 
@@ -169,9 +163,8 @@ classdef xbmini < handle & AirdropData
         end
 
         function save(dataObj, varargin)
-            % SAVE saves an instance of the xbmini object to a MAT file.
-            % File is saved in the same directory as the analyzed log file
-            % with the same name as the log.
+            % SAVE saves an instance of the xbmini object to a MAT file. File is saved in the same
+            % directory as the analyzed log file with the same name as the log.
             %
             % Any existing MAT file of the same name will be overwritten
             p = AirdropData.saveargparse(varargin{:});
@@ -210,8 +203,7 @@ classdef xbmini < handle & AirdropData
             % Set appended flag for future logic
             dataObj.isappended = true;
 
-            % Append filenames, stash in cell array if one is not already
-            % present
+            % Append filenames, stash in cell array if one is not already present
             if iscell(dataObj.filepath)
                 dataObj.filepath{end+1} = inObj.filepath;
             else
@@ -258,9 +250,9 @@ classdef xbmini < handle & AirdropData
             ax = axes('Parent', fig);
             ls = plot(dataObj.time_pressure, dataObj.altitude_feet, 'Parent', ax);
 
-            % Call the data fixed windowing helper to obtain data indices
-            % Check to see if windowlength is provided, if not then we default to the value stored
-            % in the object's private properties
+            % Call the data fixed windowing helper to obtain data indices Check to see if
+            % windowlength is provided, if not then we default to the value stored in the object's
+            % private properties
             if nargin == 1
                 windowlength = dataObj.defaultwindowlength;
             end
@@ -302,8 +294,7 @@ classdef xbmini < handle & AirdropData
 
 
         function initializedata(dataObj)
-            % Preallocate data arrays based on number of lines in the data
-            % file
+            % Preallocate data arrays based on number of lines in the data file
             dataObj.ndatapoints = dataObj.nlines - dataObj.nheaderlines;
             dataObj.time        = zeros(dataObj.ndatapoints, 1);
             dataObj.accel_x     = zeros(dataObj.ndatapoints, 1);
@@ -332,22 +323,22 @@ classdef xbmini < handle & AirdropData
             % Read raw data from the XBmini
             %
             % Header lines formatting:
-            % Line 1: Header: Misc.
-            % Line 2: Header: Misc.
-            % Line 3: Header: Start time/date
-            % Line 4: Header: Temperature, battery voltage
-            % Line 5: Header: Sample rate
-            % Line 6: Header: Deadband
-            % Line 7: Header: Deadband timeout
-            % Line 8: Header: Column labels
+            %   Line 1: Header: Misc.
+            %   Line 2: Header: Misc.
+            %   Line 3: Header: Start time/date
+            %   Line 4: Header: Temperature, battery voltage
+            %   Line 5: Header: Sample rate
+            %   Line 6: Header: Deadband
+            %   Line 7: Header: Deadband timeout
+            %   Line 8: Header: Column labels
             %
             % Raw data formatting:
-            % Column 1: Time           (seconds, float)
-            % Column 2: X acceleration (counts, integer)
-            % Column 3: Y acceleration (counts, integer)
-            % Column 4: Z acceleration (counts, integer)
-            % Column 5: Pressure       (Pascal, integer)        *Sample rate may be different than accel
-            % Column 6: Temperature    (mill-degree C, integer) *Sample rate may be different than accel
+            %   Column 1: Time           (seconds, float)
+            %   Column 2: X acceleration (counts, integer)
+            %   Column 3: Y acceleration (counts, integer)
+            %   Column 4: Z acceleration (counts, integer)
+            %   Column 5: Pressure       (Pascal, integer)        *Sample rate may be different than accel
+            %   Column 6: Temperature    (mill-degree C, integer) *Sample rate may be different than accel
 
             fID = fopen(dataObj.filepath);
             hlines = dataObj.nheaderlines;
@@ -356,12 +347,12 @@ classdef xbmini < handle & AirdropData
             step = 1;
             while ~feof(fID)
                 if step > ceil(dataObj.nlines/dataObj.chunksize)
-                    % Data file may end with a commented string that puts
-                    % textscan into an infinite loop when run with the
-                    % default parameters. Detect this infinite loop and
-                    % break out if it occurs.
-                    % This issue should be fixed by the 'CommentStyle'
-                    % argument to textscan, but this is left just in case
+                    % Data file may end with a commented string that puts textscan into an infinite
+                    % loop when run with the default parameters. Detect this infinite loop and break
+                    % out if it occurs.
+                    %
+                    % This issue should be fixed by the 'CommentStyle' argument to textscan, but
+                    % this is left just in case
                     break
                 end
 
@@ -393,32 +384,32 @@ classdef xbmini < handle & AirdropData
             % Read raw data from the XBM
             %
             % Header lines formatting:
-            % Line 1: Header: Misc.
-            % Line 2: Header: Misc.
-            % Line 3: Header: Start time/date
-            % Line 4: Header: Temperature, battery voltage
-            % Line 5: Header: Sample rate
-            % Line 6: Header: Deadband
-            % Line 7: Header: Deadband timeout
-            % Line 8: Header: Column labels
+            %   Line 1: Header: Misc.
+            %   Line 2: Header: Misc.
+            %   Line 3: Header: Start time/date
+            %   Line 4: Header: Temperature, battery voltage
+            %   Line 5: Header: Sample rate
+            %   Line 6: Header: Deadband
+            %   Line 7: Header: Deadband timeout
+            %   Line 8: Header: Column labels
             %
             % Raw data formatting:
-            % Column 1:  Time           (seconds, float)
-            % Column 2:  X acceleration (counts, integer)
-            % Column 3:  Y acceleration (counts, integer)
-            % Column 4:  Z acceleration (counts, integer)
-            % Column 5:  X gyro
-            % Column 6:  Y gyro
-            % Column 7:  Z gyro
-            % Column 8:  W quaternion
-            % Column 9:  X quaternion
-            % Column 10: Y quaternion
-            % Column 11: Z quaternion
-            % Column 12: X magnetometer
-            % Column 13: Y magnetometer
-            % Column 14: Z magnetometer
-            % Column 15: Pressure       (Pascal, integer)        *Sample rate may be different than IMU
-            % Column 16: Temperature    (mill-degree C, integer) *Sample rate may be different than IMU
+            %   Column 1:  Time           (seconds, float)
+            %   Column 2:  X acceleration (counts, integer)
+            %   Column 3:  Y acceleration (counts, integer)
+            %   Column 4:  Z acceleration (counts, integer)
+            %   Column 5:  X gyro
+            %   Column 6:  Y gyro
+            %   Column 7:  Z gyro
+            %   Column 8:  W quaternion
+            %   Column 9:  X quaternion
+            %   Column 10: Y quaternion
+            %   Column 11: Z quaternion
+            %   Column 12: X magnetometer
+            %   Column 13: Y magnetometer
+            %   Column 14: Z magnetometer
+            %   Column 15: Pressure       (Pascal, integer)        *Sample rate may be different than IMU
+            %   Column 16: Temperature    (mill-degree C, integer) *Sample rate may be different than IMU
 
             fID = fopen(dataObj.filepath);
             hlines = dataObj.nheaderlines;
@@ -427,12 +418,12 @@ classdef xbmini < handle & AirdropData
             step = 1;
             while ~feof(fID)
                 if step > ceil(dataObj.nlines/dataObj.chunksize)
-                    % Data file may end with a commented string that puts
-                    % textscan into an infinite loop when run with the
-                    % default parameters. Detect this infinite loop and
-                    % break out if it occurs.
-                    % This issue should be fixed by the 'CommentStyle'
-                    % argument to textscan, but this is left just in case
+                    % Data file may end with a commented string that puts textscan into an infinite
+                    % loop when run with the default parameters. Detect this infinite loop and break
+                    % out if it occurs.
+                    %
+                    % This issue should be fixed by the 'CommentStyle' argument to textscan, but
+                    % this is left just in case
                     break
                 end
 
@@ -476,26 +467,22 @@ classdef xbmini < handle & AirdropData
             dataObj.accel_y = dataObj.accel_y/dataObj.countspergee;
             dataObj.accel_z = dataObj.accel_z/dataObj.countspergee;
 
-            % Temperature sampled at a lower rate than acceleration,
-            % downsample time to match
+            % Temperature sampled at a lower rate than acceleration, downsample time to match
             tempidx = find(dataObj.temperature ~= 0);
             dataObj.time_temperature = dataObj.time(tempidx);
             dataObj.temperature = dataObj.temperature(tempidx)/1000;  % Convert from mill-degree C to C
 
-            % Pressure sampled at a lower rate than acceleration,
-            % downsample time to match
+            % Pressure sampled at a lower rate than acceleration, downsample time to match
             pressidx = find(dataObj.pressure ~= 0);
             dataObj.time_pressure = dataObj.time(pressidx);
             dataObj.pressure = dataObj.pressure(pressidx);
 
-            % TODO: Convert gyro, quaternion, magnetometer once
-            % GCDC provides documentation
+            % TODO: Convert gyro, quaternion, magnetometer once GCDC provides documentation
         end
 
 
         function calcaltitude(dataObj)
-            % Find ground level pressure for conversion from pressure to
-            % altitude
+            % Find ground level pressure for conversion from pressure to altitude
             dataObj.altitude_meters = 44330*(1 - (dataObj.pressure/dataObj.pressure_groundlevel).^(1/5.255));
             dataObj.altitude_feet = dataObj.altitude_meters * 3.2808;
         end
@@ -531,10 +518,10 @@ classdef xbmini < handle & AirdropData
                 dataObj.(dataObj.temperature_series{ii}) = dataObj.(dataObj.temperature_series{ii})(temperature_idx(1):temperature_idx(2));
             end
 
-            % Separate out the IMU properties by dropping temperature & pressure fields from the rest
-            % of the public fields. There are a few remaining properties with data that is not time
-            % based, a list of these is stored in our private properties, which we use to exclude
-            % them from the data trimming.
+            % Separate out the IMU properties by dropping temperature & pressure fields from the
+            % rest of the public fields. There are a few remaining properties with data that is not
+            % time based, a list of these is stored in our private properties, which we use to
+            % exclude them from the data trimming.
             allprops = properties(dataObj);
             propstotrim = allprops(~ismember(allprops, dataObj.appendignoreprops));
 
@@ -556,6 +543,7 @@ classdef xbmini < handle & AirdropData
     methods (Static)
         function xbmarray = batch(pathname)
             % Batch process a folder of XBM data files
+            %
             % Returns an array of xbmini objects
             flist = AirdropData.subdir(fullfile(pathname, 'DATA-*.csv'));
 
