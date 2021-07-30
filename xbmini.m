@@ -271,6 +271,47 @@ classdef xbmini < handle & AirdropData
             % Update the plot with the windowed data
             plot(dataObj.time_pressure, dataObj.altitude_feet, 'Parent', ax);
         end
+
+
+        function [trimmed_objs] = fixedwindowtrim_multi(dataObj, windowlength, n_windows)
+            % TODO: Write docstring
+
+            fig = figure;
+            ax = axes('Parent', fig);
+            ls = plot(dataObj.time_pressure, dataObj.altitude_feet, 'Parent', ax);
+
+            % Call the data fixed windowing helper to obtain data indices Check to see if
+            % windowlength is provided, if not then we default to the value stored in the object's
+            % private properties
+            if nargin == 1
+                windowlength = dataObj.defaultwindowlength;
+            end
+
+            trimmed_objs = dataObj.empty(n_windows, 0);
+            selected_windows = gobjects(n_windows,1);  % Store handles to selected patches
+            for ii = 1:n_windows
+                idx = dataObj.fixedwindowdata(ls, windowlength);
+                tmp_obj = dataObj.copy();
+                trimdata(tmp_obj, idx);
+                trimmed_objs(ii) = tmp_obj;
+
+                % Add a patch over already selected regions
+                x_selected = ls.XData(idx);
+                y_limits = ylim(ax);
+                vertices = [
+                    x_selected(1), y_limits(1); ...  % Bottom left corner
+                    x_selected(2), y_limits(1); ...  % Bottom right corner
+                    x_selected(2), y_limits(2); ...  % Top right corner
+                    x_selected(1), y_limits(2) ...   % Top left corner
+                ];
+                selected_windows(ii) = patch( ...
+                    'Vertices', vertices, ...
+                    'Faces', [1 2 3 4], ...
+                    'FaceColor', 'cyan', ...
+                    'FaceAlpha', 0.05 ...
+                );
+            end
+        end
     end
 
 
