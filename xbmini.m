@@ -49,18 +49,19 @@ classdef xbmini < handle & AirdropData
 
     properties (Access = private)
         nlines                          % Number of lines in CSV file
-        nheaderlines = 8;               % Number of header lines in CSV file
+        nheaderlines                    % Number of header lines in CSV file
         ndatapoints                     % Number of data lines in CSV file
         chunksize = 5000;               % Data chunk size for reading in raw data
         countspergee = 2048;            % Raw data counts per gee, for converting accelerometer data
         pressure_groundlevel = 101325;  % Ground level pressure, pascals, default is 101325 Pa
         islegacy                        % Boolean to differentiate between new/old XBmini
         isappended = false              % Boolean to document when another xbmini object has been appended
+        defaultwindowlength = 12;       % Default data windowing length, seconds
+
         appendignoreprops = {'filepath', 'loggertype', 'analysisdate', 'descentrate', 'allupweight'}  % Properties to ignore when appending/trimming
         timeseries = {'time', 'time_temperature', 'time_pressure'};  % These need to be normalized during appending so they're continuous
         pressure_series = {'time_pressure', 'pressure', 'altitude_meters', 'altitude_feet'}  % Data with same timeseries as time_pressure
         temperature_series = {'time_temperature', 'temperature'}  % Data with same timeseries as time_temperature
-        defaultwindowlength = 12;  % Default data windowing length, seconds
     end
 
     methods
@@ -85,16 +86,17 @@ classdef xbmini < handle & AirdropData
             dataObj.nlines = xbmini.countlines(dataObj.filepath);
 
             % Pick appropriate data parser based on logger type
-            getLoggerType(dataObj);
-            initializedata(dataObj);
+            dataObj.getLoggerType();
+            dataObj.count_headerlines();
+            dataObj.initializedata();
             if dataObj.islegacy
-                readrawdata_legacy(dataObj);
+                dataObj.readrawdata_legacy();
             else
-                readrawdata(dataObj);
+                dataObj.readrawdata();
             end
 
-            convertdata(dataObj);
-            calcaltitude(dataObj);
+            dataObj.convertdata();
+            dataObj.calcaltitude();
         end
 
         function findgroundlevelpressure(dataObj)
@@ -300,6 +302,23 @@ classdef xbmini < handle & AirdropData
         end
 
 
+        function count_headerlines(dataObj)
+            % Read the data file until we get to a line that doesn't start with a semicolon
+            fID = fopen(dataObj.filepath, 'r');
+            n_headers = 0;
+            while ~feof(fID)
+                tline = fgetl(fID);
+                if strcmp(tline(1), ';')
+                    n_headers = n_headers + 1;
+                else
+                    break
+                end
+            end
+            fclose(fID);
+            dataObj.nheaderlines = n_headers;
+        end
+
+
         function initializedata(dataObj)
             % Preallocate data arrays based on number of lines in the data file
             dataObj.ndatapoints = dataObj.nlines - dataObj.nheaderlines;
@@ -329,16 +348,6 @@ classdef xbmini < handle & AirdropData
         function readrawdata_legacy(dataObj)
             % Read raw data from the XBmini
             %
-            % Header lines formatting:
-            %   Line 1: Header: Misc.
-            %   Line 2: Header: Misc.
-            %   Line 3: Header: Start time/date
-            %   Line 4: Header: Temperature, battery voltage
-            %   Line 5: Header: Sample rate
-            %   Line 6: Header: Deadband
-            %   Line 7: Header: Deadband timeout
-            %   Line 8: Header: Column labels
-            %
             % Raw data formatting:
             %   Column 1: Time           (seconds, float)
             %   Column 2: X acceleration (counts, integer)
@@ -352,22 +361,14 @@ classdef xbmini < handle & AirdropData
             formatSpec = '%f %d %d %d %d %d';
 
             step = 1;
+            lines_kept = 0;  % Track in case we toss line(s) from the end of the file
             while ~feof(fID)
-                if step > ceil(dataObj.nlines/dataObj.chunksize)
-                    % Data file may end with a commented string that puts textscan into an infinite
-                    % loop when run with the default parameters. Detect this infinite loop and break
-                    % out if it occurs.
-                    %
-                    % This issue should be fixed by the 'CommentStyle' argument to textscan, but
-                    % this is left just in case
-                    break
-                end
-
                 segarray = textscan(fID, formatSpec, dataObj.chunksize, ...
                                     'Delimiter', ',', ...
                                     'HeaderLines', hlines, ...
                                     'CommentStyle', ';' ...
                                     );
+                lines_kept = lines_kept + numel(segarray{1});
                 hlines = 0;  % We've skipped the header lines, don't skip more lines on the subsequent imports
 
                 idx_start = (step-1)*dataObj.chunksize + 1;
@@ -384,21 +385,26 @@ classdef xbmini < handle & AirdropData
             end
 
             fclose(fID);
+
+            % Check to see if any lines were discarded
+            if lines_kept ~= dataObj.ndatapoints
+                % TODO: Trim less verbosely
+                trimidx = lines_kept + 1;
+
+                dataObj.time(trimidx:end)        = [];
+                dataObj.accel_x(trimidx:end)     = [];
+                dataObj.accel_y(trimidx:end)     = [];
+                dataObj.accel_z(trimidx:end)     = [];
+                dataObj.pressure(trimidx:end)    = [];
+                dataObj.temperature(trimidx:end) = [];
+
+                dataObj.ndatapoints = lines_kept;
+            end
         end
 
 
         function readrawdata(dataObj)
             % Read raw data from the XBM
-            %
-            % Header lines formatting:
-            %   Line 1: Header: Misc.
-            %   Line 2: Header: Misc.
-            %   Line 3: Header: Start time/date
-            %   Line 4: Header: Temperature, battery voltage
-            %   Line 5: Header: Sample rate
-            %   Line 6: Header: Deadband
-            %   Line 7: Header: Deadband timeout
-            %   Line 8: Header: Column labels
             %
             % Raw data formatting:
             %   Column 1:  Time           (seconds, float)
@@ -423,22 +429,14 @@ classdef xbmini < handle & AirdropData
             formatSpec = '%f %d %d %d %d %d %d %f %f %f %f %d %d %d %d %d';
 
             step = 1;
+            lines_kept = 0;  % Track in case we toss line(s) from the end of the file
             while ~feof(fID)
-                if step > ceil(dataObj.nlines/dataObj.chunksize)
-                    % Data file may end with a commented string that puts textscan into an infinite
-                    % loop when run with the default parameters. Detect this infinite loop and break
-                    % out if it occurs.
-                    %
-                    % This issue should be fixed by the 'CommentStyle' argument to textscan, but
-                    % this is left just in case
-                    break
-                end
-
                 segarray = textscan(fID, formatSpec, dataObj.chunksize, ...
                                     'Delimiter', ',', ...
                                     'HeaderLines', hlines, ...
                                     'CommentStyle', ';' ...
                                     );
+                lines_kept = lines_kept + numel(segarray{1});
                 hlines = 0;  % We've skipped the header lines, don't skip more lines on the subsequent imports
 
                 idx_start = (step-1)*dataObj.chunksize + 1;
@@ -465,6 +463,31 @@ classdef xbmini < handle & AirdropData
             end
 
             fclose(fID);
+
+            % Check to see if any lines were discarded
+            if lines_kept ~= dataObj.ndatapoints
+                % TODO: Trim less verbosely
+                trimidx = lines_kept + 1;
+
+                dataObj.time(trimidx:end)        = [];
+                dataObj.accel_x(trimidx:end)     = [];
+                dataObj.accel_y(trimidx:end)     = [];
+                dataObj.accel_z(trimidx:end)     = [];
+                dataObj.gyro_x(trimidx:end)      = [];
+                dataObj.gyro_y(trimidx:end)      = [];
+                dataObj.gyro_z(trimidx:end)      = [];
+                dataObj.quat_w(trimidx:end)      = [];
+                dataObj.quat_x(trimidx:end)      = [];
+                dataObj.quat_y(trimidx:end)      = [];
+                dataObj.quat_z(trimidx:end)      = [];
+                dataObj.mag_x(trimidx:end)       = [];
+                dataObj.mag_y(trimidx:end)       = [];
+                dataObj.mag_z(trimidx:end)       = [];
+                dataObj.pressure(trimidx:end)    = [];
+                dataObj.temperature(trimidx:end) = [];
+
+                dataObj.ndatapoints = lines_kept;
+            end
         end
 
 
