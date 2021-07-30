@@ -57,6 +57,7 @@ classdef xbmini < handle & AirdropData
         islegacy                        % Boolean to differentiate between new/old XBmini
         isappended = false              % Boolean to document when another xbmini object has been appended
         appendignoreprops = {'filepath', 'loggertype', 'analysisdate', 'descentrate', 'allupweight'}  % Properties to ignore when appending/trimming
+        timeseries = {'time', 'time_temperature', 'time_pressure'};  % These need to be normalized during appending so they're continuous
         pressure_series = {'time_pressure', 'pressure', 'altitude_meters', 'altitude_feet'}  % Data with same timeseries as time_pressure
         temperature_series = {'time_temperature', 'temperature'}  % Data with same timeseries as time_temperature
         defaultwindowlength = 12;  % Default data windowing length, seconds
@@ -193,6 +194,12 @@ classdef xbmini < handle & AirdropData
 
         function append(dataObj, inObj)
             % APPEND appends inObj's data to the end of dataObj's data
+
+            % Shift incoming timestamps so we get continuous time vectors instead of a sawtooth
+            for ii = 1:numel(dataObj.timeseries)
+                offset = dataObj.(dataObj.timeseries{ii})(end);
+                inObj.(dataObj.timeseries{ii}) = inObj.(dataObj.timeseries{ii}) + offset;
+            end
 
             % Merge data
             propstoiter = setdiff(properties(dataObj), dataObj.appendignoreprops);
