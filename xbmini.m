@@ -329,6 +329,12 @@ classdef xbmini < handle & AirdropData
             end
 
             tmp = regexp(tline, '(X16\S*)(?=\,)|(HAM-IMU\+alt)(?=\,)', 'Match');
+            if isempty(tmp)
+                msgID = 'xbmini:getLoggerType:UnknownDevice';
+                warning(msgID, 'No logger type found in header, defaulting to ''HAM-IMU+alt''');
+                tmp{1} = 'HAM-IMU+alt';
+            end
+
             dataObj.loggertype = tmp{1};  % De-nest cell
             switch dataObj.loggertype
                 case 'X16-B1100-mini'
@@ -617,9 +623,18 @@ classdef xbmini < handle & AirdropData
             %
             % Returns an array of xbmini objects
             flist = AirdropData.subdir(fullfile(pathname, 'DATA-*.csv'));
+            if isempty(flist)
+                % Try an all-caps *.CSV extension before erroring
+                flist = AirdropData.subdir(fullfile(pathname, 'DATA-*.CSV'));
+            end
+
+            if isempty(flist)
+                msgID = 'xbmini:batch:NoDataFilesFound';
+                error(msgID, 'No CSV data found in specified directory: %s', dataObj.filepath);
+            end
 
             nfiles = numel(flist);
-            xbmarray = xbmini.empty(nfiles, 1);
+            xbmarray = xbmini.empty(nfiles, 0);
             for ii = 1:nfiles
                 xbmarray(ii) = xbmini(fullfile(flist(ii).name));
             end

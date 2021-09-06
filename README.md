@@ -51,11 +51,11 @@ Initialize an `xbmini` object using an absolute filepath to the raw log file:
   * Y quaternion
 * `quat_z`
   * Z quaternion
-* `mag_x` 
+* `mag_x`
   * X magnetometer
-* `mag_y` 
+* `mag_y`
   * Y magnetometer
-* `mag_z` 
+* `mag_z`
   * Z magnetometer
 
 NOTE: `time_temperature` and `time_pressure` may be different time vectors than `time` due to potential differences in sampling rate settings and sensor sampling rate capability.
