@@ -18,7 +18,6 @@ classdef xbmini < handle & AirdropData
     %     getdate    - Generate current local timestamp in ISO 8601 format
     %     countlines - Count number of lines in file
     %     windowdata - Interactively window plotted data
-
     properties
         filepath          % Path to analyzed CSV file
         loggertype        % Type of logger
@@ -622,10 +621,10 @@ classdef xbmini < handle & AirdropData
             % Batch process a folder of XBM data files
             %
             % Returns an array of xbmini objects
-            flist = AirdropData.subdir(fullfile(pathname, 'DATA-*.csv'));
+            flist = dir(fullfile(pathname, '**', 'DATA-*.csv'));
             if isempty(flist)
                 % Try an all-caps *.CSV extension before erroring
-                flist = AirdropData.subdir(fullfile(pathname, 'DATA-*.CSV'));
+                flist = dir(fullfile(pathname, '**', 'DATA-*.CSV'));
             end
 
             if isempty(flist)
