@@ -19,31 +19,39 @@ classdef xbmini < handle & AirdropData
     %     countlines - Count number of lines in file
     %     windowdata - Interactively window plotted data
     properties
-        filepath          % Path to analyzed CSV file
-        loggertype        % Type of logger
-        analysisdate      % Date of analysis, ISO 8601, yyyy-mm-ddTHH:MM:SS+/-HH:MMZ
-        time              % Accelerometer time vector, seconds
-        time_temperature  % Temperature time vector, seconds
-        time_pressure     % Pressure time vector, seconds
-        accel_x           % X acceleration, gees
-        accel_y           % Y acceleration, gees
-        accel_z           % Z acceleration, gees
-        gyro_x            % X gyro (New XBM only)
-        gyro_y            % Y gyro (New XBM only)
-        gyro_z            % Z gyro (New XBM only)
-        quat_w            % W quaternion (New XBM only)
-        quat_x            % X quaternion (New XBM only)
-        quat_y            % Y quaternion (New XBM only)
-        quat_z            % Z quaternion (New XBM only)
-        mag_x             % X magnetometer (New XBM only)
-        mag_y             % Y magnetometer (New XBM only)
-        mag_z             % Z magnetometer (New XBM only)
-        pressure          % Raw barometric pressure, pascals
-        temperature       % Temperature, Celsius
-        altitude_meters   % Pressure altitude, meters, derived from pressure
-        altitude_feet     % Pressure altitude, feet, derived from pressure
-        descentrate       % Descent rate, feet per second, derived from pressure altitude and pressure time
-        allupweight       % All up weight, pounds
+        filepath              % Path to analyzed CSV file
+        loggertype            % Type of logger
+        analysisdate          % Date of analysis, ISO 8601, yyyy-mm-ddTHH:MM:SS+/-HH:MMZ
+        time                  % Accelerometer time vector, seconds
+        time_temperature      % Temperature time vector, seconds
+        time_pressure         % Pressure time vector, seconds
+        time_gps              % GPS time vector, seconds
+        accel_x               % X acceleration, gees
+        accel_y               % Y acceleration, gees
+        accel_z               % Z acceleration, gees
+        gyro_x                % X gyro (New XBM only)
+        gyro_y                % Y gyro (New XBM only)
+        gyro_z                % Z gyro (New XBM only)
+        quat_w                % W quaternion (New XBM only)
+        quat_x                % X quaternion (New XBM only)
+        quat_y                % Y quaternion (New XBM only)
+        quat_z                % Z quaternion (New XBM only)
+        mag_x                 % X magnetometer (New XBM only)
+        mag_y                 % Y magnetometer (New XBM only)
+        mag_z                 % Z magnetometer (New XBM only)
+        time_of_week          % Time of week (XBM GPS only)
+        lat                   % GPS latitude (XBM GPS only)
+        lon                   % GPS longitude (XBM GPS only)
+        gps_height_ellipsoid  % GPS height, meters, ellipsoid model
+        gps_height_msl        % GPS height, meters, MSL model (XBM GPS only)
+        hdop                  % GPS horizontal degrees of precision (XBM GPS only)
+        vdop                  % GPS vertical degrees of precision (XBM GPS only)
+        pressure              % Raw barometric pressure, pascals
+        temperature           % Temperature, Celsius
+        altitude_meters       % Pressure altitude, meters, derived from pressure
+        altitude_feet         % Pressure altitude, feet, derived from pressure
+        descentrate           % Descent rate, feet per second, derived from pressure
+        allupweight           % All up weight, pounds
     end
 
     properties (Access = private)
@@ -54,13 +62,16 @@ classdef xbmini < handle & AirdropData
         countspergee = 2048;            % Raw data counts per gee, for converting accelerometer data
         pressure_groundlevel = 101325;  % Ground level pressure, pascals, default is 101325 Pa
         islegacy                        % Boolean to differentiate between new/old XBmini
+        isgps                           % Boolean to identify new XBM GPS units
         isappended = false              % Boolean to document when another xbmini object has been appended
         defaultwindowlength = 12;       % Default data windowing length, seconds
 
         appendignoreprops = {'filepath', 'loggertype', 'analysisdate', 'descentrate', 'allupweight'}  % Properties to ignore when appending/trimming
-        timeseries = {'time', 'time_temperature', 'time_pressure'};  % These need to be normalized during appending so they're continuous
+        timeseries = {'time', 'time_temperature', 'time_pressure', 'time_gps'};  % These need to be normalized during appending so they're continuous
         pressure_series = {'time_pressure', 'pressure', 'altitude_meters', 'altitude_feet'}  % Data with same timeseries as time_pressure
         temperature_series = {'time_temperature', 'temperature'}  % Data with same timeseries as time_temperature
+        quaternion_series = {'quat_w', 'quat_x', 'quat_y', 'quat_z'}  % Drop these for IMU GPS trimming
+        gps_series = {'time_gps', 'time_of_week', 'lat', 'lon', 'gps_height_ellipsoid', 'gps_height_msl', 'hdop', 'vdop'}  % Data with same timeseries as time_gps
     end
 
     methods
@@ -88,7 +99,9 @@ classdef xbmini < handle & AirdropData
             dataObj.getLoggerType();
             dataObj.count_headerlines();
             dataObj.initializedata();
-            if dataObj.islegacy
+            if dataObj.isgps
+                dataObj.readrawdata_gps();
+            elseif dataObj.islegacy
                 dataObj.readrawdata_legacy();
             else
                 dataObj.readrawdata();
@@ -327,7 +340,7 @@ classdef xbmini < handle & AirdropData
                       'Invalid header detected, data file may be empty: %s', dataObj.filepath);
             end
 
-            tmp = regexp(tline, '(X16\S*)(?=\,)|(HAM-IMU\+alt)(?=\,)', 'Match');
+            tmp = regexp(tline, '(X16\S*)(?=\,)|(HAM-IMU\+alt)(?=\,)|GPS', 'Match');
             if isempty(tmp)
                 msgID = 'xbmini:getLoggerType:UnknownDevice';
                 warning(msgID, 'No logger type found in header, defaulting to ''HAM-IMU+alt''');
@@ -338,7 +351,12 @@ classdef xbmini < handle & AirdropData
             switch dataObj.loggertype
                 case 'X16-B1100-mini'
                     dataObj.islegacy = true;
+                    dataObj.isgps = false;
                 case {'X16-ham', 'HAM-IMU+alt'}
+                    dataObj.islegacy = false;
+                    dataObj.isgps = false;
+                case 'GPS'
+                    dataObj.isgps = true;
                     dataObj.islegacy = false;
                 otherwise
                     msgID = 'xbmini:getLoggerType:UnsupportedDevice';
@@ -380,13 +398,27 @@ classdef xbmini < handle & AirdropData
                 dataObj.gyro_x = zeros(dataObj.ndatapoints, 1);
                 dataObj.gyro_y = zeros(dataObj.ndatapoints, 1);
                 dataObj.gyro_z = zeros(dataObj.ndatapoints, 1);
+                dataObj.mag_x  = zeros(dataObj.ndatapoints, 1);
+                dataObj.mag_y  = zeros(dataObj.ndatapoints, 1);
+                dataObj.mag_z  = zeros(dataObj.ndatapoints, 1);
+            end
+
+            if ~dataObj.islegacy && ~dataObj.isgps
+                % IMU GPS does not have quaternions
                 dataObj.quat_w = zeros(dataObj.ndatapoints, 1);
                 dataObj.quat_x = zeros(dataObj.ndatapoints, 1);
                 dataObj.quat_y = zeros(dataObj.ndatapoints, 1);
                 dataObj.quat_z = zeros(dataObj.ndatapoints, 1);
-                dataObj.mag_x  = zeros(dataObj.ndatapoints, 1);
-                dataObj.mag_y  = zeros(dataObj.ndatapoints, 1);
-                dataObj.mag_z  = zeros(dataObj.ndatapoints, 1);
+            end
+
+            if dataObj.isgps
+                dataObj.time_of_week = zeros(dataObj.ndatapoints, 1);
+                dataObj.lat = zeros(dataObj.ndatapoints, 1);
+                dataObj.lon = zeros(dataObj.ndatapoints, 1);
+                dataObj.gps_height_ellipsoid = zeros(dataObj.ndatapoints, 1);
+                dataObj.gps_height_msl = zeros(dataObj.ndatapoints, 1);
+                dataObj.hdop = zeros(dataObj.ndatapoints, 1);
+                dataObj.vdop = zeros(dataObj.ndatapoints, 1);
             end
         end
 
@@ -536,6 +568,102 @@ classdef xbmini < handle & AirdropData
             end
         end
 
+        function readrawdata_gps(dataObj)
+            % Read raw data from the XBM GPS
+            %
+            % Raw data formatting:
+            %   Column 1:  Time           (seconds, float)
+            %   Column 2:  X acceleration (counts, integer)
+            %   Column 3:  Y acceleration (counts, integer)
+            %   Column 4:  Z acceleration (counts, integer)
+            %   Column 5:  X gyro
+            %   Column 6:  Y gyro
+            %   Column 7:  Z gyro
+            %   Column 8:  X magnetometer
+            %   Column 9:  Y magnetometer
+            %   Column 10: Z magnetometer
+            %   Column 11: Pressure       (Pascal, integer)        *Sample rate may be different than IMU
+            %   Column 12: Temperature    (mill-degree C, integer) *Sample rate may be different than IMU
+            %   Column 13: Time of week *Sample rate may be different than IMU
+            %   Column 14: Latitude *Sample rate may be different than IMU
+            %   Column 15: Longitude *Sample rate may be different than IMU
+            %   Column 16: Height, ellipsoid *Sample rate may be different than IMU
+            %   Column 17: Height, MSL *Sample rate may be different than IMU
+            %   Column 18: HDOP *Sample rate may be different than IMU
+            %   Column 19: VDOP *Sample rate may be different than IMU
+
+            fID = fopen(dataObj.filepath);
+            hlines = dataObj.nheaderlines;
+            formatSpec = '%f %d %d %d %d %d %d %d %d %d %d %d %f %f %f %f %f %f %f';
+
+            step = 1;
+            lines_kept = 0;  % Track in case we toss line(s) from the end of the file
+            while ~feof(fID)
+                segarray = textscan(fID, formatSpec, dataObj.chunksize, ...
+                                    'Delimiter', ',', ...
+                                    'HeaderLines', hlines, ...
+                                    'CommentStyle', ';' ...
+                                    );
+                lines_kept = lines_kept + numel(segarray{1});
+                hlines = 0;  % We've skipped the header lines, don't skip more lines on the subsequent imports
+
+                idx_start = (step-1)*dataObj.chunksize + 1;
+                idx_end = idx_start + length(segarray{:,1}) - 1;
+
+                dataObj.time(idx_start:idx_end)                 = segarray{1};
+                dataObj.accel_x(idx_start:idx_end)              = segarray{2};
+                dataObj.accel_y(idx_start:idx_end)              = segarray{3};
+                dataObj.accel_z(idx_start:idx_end)              = segarray{4};
+                dataObj.gyro_x(idx_start:idx_end)               = segarray{5};
+                dataObj.gyro_y(idx_start:idx_end)               = segarray{6};
+                dataObj.gyro_z(idx_start:idx_end)               = segarray{7};
+                dataObj.mag_x(idx_start:idx_end)                = segarray{8};
+                dataObj.mag_y(idx_start:idx_end)                = segarray{9};
+                dataObj.mag_z(idx_start:idx_end)                = segarray{10};
+                dataObj.pressure(idx_start:idx_end)             = segarray{11};
+                dataObj.temperature(idx_start:idx_end)          = segarray{12};
+                dataObj.time_of_week(idx_start:idx_end)         = segarray{13};
+                dataObj.lat(idx_start:idx_end)                  = segarray{14};
+                dataObj.lon(idx_start:idx_end)                  = segarray{15};
+                dataObj.gps_height_ellipsoid(idx_start:idx_end) = segarray{16};
+                dataObj.gps_height_msl(idx_start:idx_end)       = segarray{17};
+                dataObj.hdop(idx_start:idx_end)                 = segarray{18};
+                dataObj.vdop(idx_start:idx_end)                 = segarray{19};
+
+                step = step+1;
+            end
+
+            fclose(fID);
+
+            % Check to see if any lines were discarded
+            if lines_kept ~= dataObj.ndatapoints
+                % TODO: Trim less verbosely
+                trimidx = lines_kept + 1;
+
+                dataObj.time(trimidx:end)                 = [];
+                dataObj.accel_x(trimidx:end)              = [];
+                dataObj.accel_y(trimidx:end)              = [];
+                dataObj.accel_z(trimidx:end)              = [];
+                dataObj.gyro_x(trimidx:end)               = [];
+                dataObj.gyro_y(trimidx:end)               = [];
+                dataObj.gyro_z(trimidx:end)               = [];
+                dataObj.mag_x(trimidx:end)                = [];
+                dataObj.mag_y(trimidx:end)                = [];
+                dataObj.mag_z(trimidx:end)                = [];
+                dataObj.pressure(trimidx:end)             = [];
+                dataObj.temperature(trimidx:end)          = [];
+                dataObj.time_of_week(trimidx:end)         = [];
+                dataObj.lat(trimidx:end)                  = [];
+                dataObj.lon(trimidx:end)                  = [];
+                dataObj.gps_height_ellipsoid(trimidx:end) = [];
+                dataObj.gps_height_msl(trimidx:end)       = [];
+                dataObj.hdop(trimidx:end)                 = [];
+                dataObj.vdop(trimidx:end)                 = [];
+
+                dataObj.ndatapoints = lines_kept;
+            end
+        end
+
 
         function convertdata(dataObj)
             % Convert acceleration data from raw counts to gees
@@ -552,6 +680,16 @@ classdef xbmini < handle & AirdropData
             pressidx = find(dataObj.pressure ~= 0);
             dataObj.time_pressure = dataObj.time(pressidx);
             dataObj.pressure = dataObj.pressure(pressidx);
+
+            % GPS sampled at a lower rate than acceleration, downsample time to match
+            if dataObj.isgps
+                gpsidx = find(dataObj.time_of_week ~= 0);
+                dataObj.time_gps = dataObj.time(gpsidx);
+                for ii = 1:length(dataObj.gps_series)
+                    field = dataObj.gps_series{ii};
+                    dataObj.(field) = dataObj.(field)(gpsidx);
+                end
+            end
 
             % TODO: Convert gyro, quaternion, magnetometer once GCDC provides documentation
         end
@@ -575,7 +713,8 @@ classdef xbmini < handle & AirdropData
             % are matched as closely as possible to the timestamps corresponding to the input
             % indices.
 
-            % Match pressure indices to corresponding IMU & temperature timestamps
+            % Match pressure indices to corresponding IMU, temperature, and GPS (if present)
+            % timestamps
             time_window = dataObj.time_pressure(pressure_idx);
             temperature_idx(1) = find(dataObj.time_temperature >= time_window(1), 1);
             temperature_idx(2) = find(dataObj.time_temperature >= time_window(2), 1);
@@ -594,6 +733,17 @@ classdef xbmini < handle & AirdropData
                 dataObj.(dataObj.temperature_series{ii}) = dataObj.(dataObj.temperature_series{ii})(temperature_idx(1):temperature_idx(2));
             end
 
+            % Trim GPS, if present
+            if dataObj.isgps
+                gps_idx(1) = find(dataObj.time_gps >= time_window(1), 1);
+                gps_idx(2) = find(dataObj.time_gps >= time_window(2), 1);
+
+                for ii = 1:length(dataObj.gps_series)
+                    field = dataObj.gps_series{ii};
+                    dataObj.(field) = dataObj.(field)(gps_idx(1):gps_idx(2));
+                end
+            end
+
             % Separate out the IMU properties by dropping temperature & pressure fields from the
             % rest of the public fields. There are a few remaining properties with data that is not
             % time based, a list of these is stored in our private properties, which we use to
@@ -601,8 +751,14 @@ classdef xbmini < handle & AirdropData
             allprops = properties(dataObj);
             propstotrim = allprops(~ismember(allprops, dataObj.appendignoreprops));
 
-            % Separate out the IMU properties by dropping temperature & pressure fields
-            imu_props = propstotrim(~ismember(propstotrim, [dataObj.pressure_series, dataObj.temperature_series]));
+            % Separate out the IMU properties by dropping temperature, pressure, and GPS (if
+            % present) fields
+            imu_props = propstotrim(~ismember(propstotrim, [dataObj.pressure_series, dataObj.temperature_series, dataObj.gps_series]));
+            if dataObj.isgps
+                % IMU GPS does not have quaternions
+                imu_props = imu_props(~ismember(imu_props, dataObj.quaternion_series));
+            end
+
             for ii = 1:length(imu_props)
                 dataObj.(imu_props{ii}) = dataObj.(imu_props{ii})(time_idx(1):time_idx(2));
             end
